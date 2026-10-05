@@ -1,0 +1,44 @@
+# ===========================================================================
+# Unreal Engine plugin repository -- repository root == plugin root
+# (RoadBuilder.uplugin lives here)
+#
+# Only Config/ , Content/ and Source/ are source-controlled.
+# Everything below is machine-generated and must never be committed.
+#
+# WARNING: do NOT stage with `git add .` / `git add -A` in this repository.
+#          Stage explicitly, e.g. `git add Source/` or `git add .gitignore`.
+# ===========================================================================
+
+# --- Unreal Engine build artifacts (regenerated on every build) -------------
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+
+# --- IDE / tooling project files -------------------------------------------
+.vs/
+.idea/
+.vscode/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+*.user
+*.userprefs
+*.vsconfig
+
+# --- OS junk ---------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Local logs / scratch --------------------------------------------------
+*.log
+
+# --- AI assistant working memory (stays on disk, not part of the plugin) ----
+.workbuddy/
+
+# NOTE: `Build/` is intentionally NOT ignored -- plugins may ship icons or
+# platform build scripts there. Same for `Resources/`.
