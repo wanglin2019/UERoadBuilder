@@ -7,8 +7,11 @@
 #include "EdMode.h"
 #include "RoadActor.h"
 #include "RoadScene.h"
+#include "RoadTools/RoadToolType.h"
 
 class SRoadEdit;
+class FRoadInspector;
+class FRoadTool;
 
 struct HRoadProxy : public HHitProxy
 {
@@ -57,321 +60,11 @@ struct HRoadMarkingProxy : public HHitProxy
 	int SubId;
 };
 
-class FRoadTool : public FModeTool
-{
-public:
-	static inline const float Size_Point = 16.f;
-	static inline const float Thickness_Road = 2.f;
-	static inline const float Thickness_Line = 1.f;
-	static inline const float DepthBias_Select = 10.f;
-	static inline const FColor Color_Road = FColor(128, 128, 255);
-	static inline const FColor Color_Line = FColor(0, 128, 0);
-	static inline const FColor Color_Grey = FColor(128, 128, 128);
-	static inline const FColor Color_Select = FColor::Red;
-	virtual bool ShouldDrawWidget() const { return false; }
-	virtual FVector GetWidgetLocation() const { return FVector::ZeroVector; }
-	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) { return false; }
-	virtual EAxisList::Type GetWidgetAxisToDraw() const { return EAxisList::None; }
-//	virtual TSharedPtr<SWidget> GenerateContextMenu() { return TSharedPtr<SWidget>(); }
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) { return false; }
-	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
-	virtual bool EndModify();
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange) {}
-	virtual void Reset();
 
-	ARoadScene* GetScene() const;
-	ARoadActor*& GetSelectedRoad() const;
-	AGroundActor*& GetSelectedGround() const;
-	AJunctionActor*& GetSelectedJunction() const;
-	SRoadEdit* GetEditWidget() const;
-	FRay GetRay(FEditorViewportClient* ViewportClient) const;
-	FVector LineTrace(const FRay& Ray, AActor* IgnoredActor = nullptr) const;
-	FVector LineTrace(FEditorViewportClient* ViewportClient, AActor* IgnoredActor = nullptr) const;
-	void SelectParent();
-	bool HandleClickRoad(HHitProxy* HitProxy, const FViewportClick& Click, int* PointIndex = nullptr);
-	bool HandleClickJunction(HHitProxy* HitProxy, const FViewportClick& Click, int* GateIndex = nullptr, int* LinkIndex = nullptr);
-	void DrawCurve(FPrimitiveDrawInterface* PDI, const FPolyline& Curve, FColor Color, float Thickness, float DepthBias = 0);
-	void DrawPoint(FPrimitiveDrawInterface* PDI, URoadCurve* Curve, double Dist, FColor Color);
-	void DrawDivider(FPrimitiveDrawInterface* PDI, URoadLane* Lane, double Dist, FColor Color);
-	void DrawRoads(FPrimitiveDrawInterface* PDI, bool DrawLinks);
-	void DrawJunction(FPrimitiveDrawInterface* PDI, AJunctionActor* Junction, FColor Color);
-	void DrawJunctions(FPrimitiveDrawInterface* PDI);
-	bool LazyRebuild = false;
-};
-
-class FRoadTool_File : public FRoadTool
-{
-public:
-};
-
-class FRoadTool_RoadPlan : public FRoadTool
-{
-public:
-	virtual bool ShouldDrawWidget() const { return PointIndex != INDEX_NONE; }
-	virtual FVector GetWidgetLocation() const;
-	virtual EAxisList::Type GetWidgetAxisToDraw() const { return EAxisList::XY; }
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
-	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)
-	{
-		GetSelectedRoad()->Modify();
-	}
-	virtual void Reset()
-	{
-		FRoadTool::Reset();
-		GetSelectedRoad() = nullptr;
-		PointIndex = INDEX_NONE;
-	}
-	int PointIndex = INDEX_NONE;
-};
-
-class FRoadTool_RoadHeight : public FRoadTool
-{
-public:
-	virtual bool ShouldDrawWidget() const { return PointIndex != INDEX_NONE; }
-	virtual FVector GetWidgetLocation() const;
-	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData);
-	virtual EAxisList::Type GetWidgetAxisToDraw() const { return EAxisList::X; }
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
-	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)
-	{
-		GetSelectedRoad()->Modify();
-	}
-	virtual void Reset()
-	{
-		FRoadTool::Reset();
-		PointIndex = INDEX_NONE;
-	}
-	int PointIndex = INDEX_NONE;
-};
-
-class FRoadTool_RoadChop : public FRoadTool
-{
-public:
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)
-	{
-		GetSelectedRoad()->Modify();
-	}
-};
-
-class FRoadTool_RoadSplit : public FRoadTool
-{
-public:
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)
-	{
-		GetSelectedRoad()->Modify();
-	}
-};
-
-class FRoadTool_JunctionLink : public FRoadTool
-{
-public:
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)
-	{
-		GetSelectedJunction()->Gates[GateIndex].Links[LinkIndex].Road->Modify();
-	}
-	virtual void Reset()
-	{
-		FRoadTool::Reset();
-		GateIndex = INDEX_NONE;
-		LinkIndex = INDEX_NONE;
-	}
-	int GateIndex = INDEX_NONE;
-	int LinkIndex = INDEX_NONE;
-};
-
-class FRoadTool_LaneEdit : public FRoadTool
-{
-public:
-	virtual bool ShouldDrawWidget() const { return SegmentIndex != INDEX_NONE; }
-	virtual FVector GetWidgetLocation() const;
-	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData);
-	virtual EAxisList::Type GetWidgetAxisToDraw() const { return EAxisList::X; }
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
-	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)
-	{
-		CurrentLane->Modify();
-	}
-	virtual void Reset()
-	{
-		FRoadTool::Reset();
-		CurrentLane = nullptr;
-		SegmentIndex = INDEX_NONE;
-	}
-	URoadLane* CurrentLane = nullptr;
-	int SegmentIndex = INDEX_NONE;
-};
-
-class FRoadTool_LaneCarve : public FRoadTool
-{
-public:
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void Reset()
-	{
-		FRoadTool::Reset();
-		StartUV = FVector2D(-1, 0);
-	}
-	FVector2D StartUV = FVector2D(-1, 0);
-};
-
-class FRoadTool_LaneWidth : public FRoadTool
-{
-public:
-	virtual bool ShouldDrawWidget() const { return OffsetIndex != INDEX_NONE; }
-	virtual FVector GetWidgetLocation() const;
-	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData);
-	virtual EAxisList::Type GetWidgetAxisToDraw() const { return EAxisList::XY; }
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
-	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)
-	{
-		CurrentBoundary->Modify();
-	}
-	virtual void Reset()
-	{
-		FRoadTool::Reset();
-		CurrentBoundary = nullptr;
-		OffsetIndex = INDEX_NONE;
-	}
-	URoadBoundary* CurrentBoundary = nullptr;
-	int OffsetIndex = INDEX_NONE;
-};
-
-class FRoadTool_MarkingLane : public FRoadTool
-{
-public:
-	virtual bool ShouldDrawWidget() const { return SegmentIndex != INDEX_NONE; }
-	virtual FVector GetWidgetLocation() const;
-	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData);
-	virtual EAxisList::Type GetWidgetAxisToDraw() const { return EAxisList::X; }
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
-	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)
-	{
-		CurrentBoundary->Modify();
-	}
-	virtual void Reset()
-	{
-		FRoadTool::Reset();
-		CurrentBoundary = nullptr;
-		SegmentIndex = INDEX_NONE;
-	}
-	URoadBoundary* CurrentBoundary = nullptr;
-	int SegmentIndex = INDEX_NONE;
-};
-
-class FRoadTool_MarkingPoint : public FRoadTool
-{
-public:
-	virtual bool ShouldDrawWidget() const { return CurrentMarking != nullptr; }
-	virtual FVector GetWidgetLocation() const;
-	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData);
-	virtual EAxisList::Type GetWidgetAxisToDraw() const { return EAxisList::XY; }
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
-	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)
-	{
-		CurrentMarking->Modify();
-	}
-	virtual void Reset()
-	{
-		FRoadTool::Reset();
-		CurrentMarking = nullptr;
-	}
-	UMarkingPoint* CurrentMarking = nullptr;
-};
-
-class FRoadTool_MarkingCurve : public FRoadTool
-{
-public:
-	virtual bool ShouldDrawWidget() const { return CurrentMarking != nullptr; }
-	virtual FVector GetWidgetLocation() const;
-	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData);
-	virtual EAxisList::Type GetWidgetAxisToDraw() const { return EAxisList::XY; }
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
-	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)
-	{
-		CurrentMarking->Modify();
-	}
-	virtual void Reset()
-	{
-		FRoadTool::Reset();
-		CurrentMarking = nullptr;
-		PointIndex = INDEX_NONE;
-		SubIndex = 0;
-	}
-	UMarkingCurve* CurrentMarking = nullptr;
-	int PointIndex = INDEX_NONE;
-	int SubIndex = 0;
-};
-
-class FRoadTool_GroundEdit : public FRoadTool
-{
-public:
-	virtual bool ShouldDrawWidget() const { return PointIndex != INDEX_NONE && GetSelectedGround()->Points[PointIndex].Road == nullptr; }
-	virtual FVector GetWidgetLocation() const;
-	virtual EAxisList::Type GetWidgetAxisToDraw() const { return EAxisList::XY; }
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void Reset()
-	{
-		FRoadTool::Reset();
-		GetSelectedGround() = nullptr;
-		PointIndex = INDEX_NONE;
-	}
-	int PointIndex = INDEX_NONE;
-};
-
-class FRoadTool_Settings : public FRoadTool
-{
-public:
-};
 
 class FEdModeRoad : public FEdMode, public FNotifyHook
 {
 public:
-	enum ToolType
-	{
-		File,
-		RoadPlan,
-		RoadHeight,
-		RoadChop,
-		RoadSplit,
-		JunctionLink,
-		LaneEdit,
-		LaneCarve,
-		LaneWidth,
-		MarkingLane,
-		MarkingPoint,
-		MarkingCurve,
-		GroundEdit,
-		Settings,
-	};
 	static FEditorModeID GetModeID()
 	{
 		return FEditorModeID(TEXT("EM_Road"));
@@ -384,8 +77,21 @@ public:
 	FEdModeRoad();
 	virtual ~FEdModeRoad();
 
-	int GetToolIndex();
-	void SetToolIndex(int Index);
+	/** Identity of the current tool. Returns ERoadToolType::None when there is no current tool. */
+	ERoadToolType GetCurrentToolType() const;
+	/** Switches the current tool by identity. Distinct from the base SetCurrentTool(FModeTool*): this takes a tool identity, not a tool instance. */
+	void SetCurrentToolByType(ERoadToolType ToolType);
+	/** Finds a tool by identity; returns nullptr if not found. */
+	FRoadTool* FindRoadTool(ERoadToolType ToolType) const;
+
+	/**
+	 * Maps a tool to the object shown for it in the settings panel. Returns nullptr for tools without a settings panel.
+	 * The mapping is tool metadata, so it lives in the mode rather than in the panel.
+	 */
+	static UObject* GetToolSettings(ERoadToolType ToolType);
+
+	/** Inspector panel. Owned by this class (created in Enter, released in Exit); tools reach it via FRoadTool::GetInspector(). */
+	FRoadInspector* GetInspector() const { return Inspector.Get(); }
 
 	void OnUndo(const FTransactionContext& InTransactionContext, bool bSucceeded);
 	void OnRedo(const FTransactionContext& InTransactionContext, bool bSucceeded);
@@ -410,4 +116,22 @@ public:
 	ARoadActor* SelectedRoad = nullptr;
 	AGroundActor* SelectedGround = nullptr;
 	AJunctionActor* SelectedJunction = nullptr;
+
+private:
+	/** Applies the current tool's settings panel once: call right after the panel is created. */
+	void RefreshInspectorSettings();
+
+	/**
+	 * Inspector panel. **Owned by the mode**: created in Enter() (before the toolkit, since SRoadEdit borrows it for layout),
+	 * released in Exit(), exactly spanning one editing session.
+	 * The panel does not own the mode and the mode does not depend on the panel's lifetime, so there is no raw pointer and no need
+	 * for a patch that clears the mode pointer back when the panel is destroyed before the mode.
+	 */
+	TSharedPtr<FRoadInspector> Inspector;
+
+	/**
+	 * Tool identity -> tool instance, indexed by the GetToolType() each tool self-reports.
+	 * The base class Tools array only serves as the ownership container (for destruction); all lookups go here — registration order is meaningless.
+	 */
+	TMap<ERoadToolType, FRoadTool*> ToolsById;
 };
