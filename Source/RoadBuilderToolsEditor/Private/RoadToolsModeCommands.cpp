@@ -40,7 +40,16 @@ void FRoadToolsModeCommands::RegisterCommands()
 	// them in UI order; the toolkit reads that list rather than this map, because a TMap has no order.
 
 	// File: panel-only. Switching to this palette starts the File tool.
-	Commands.Add(PaletteName_File, {});
+	//
+	// The command is created but deliberately kept OUT of the palette array: UEdMode::RegisterTool()
+	// maps a command to "start this tool" and needs a real one, while the palette array is only what
+	// BuildToolPalette() iterates to draw buttons. An empty array is therefore a valid palette with no
+	// buttons - which is exactly the legacy shape (RoadToolbar_File draws nothing) - but the command
+	// still has to exist or RegisterTool() is handed a null and asserts in FUICommandList::MapAction.
+	{
+		UI_COMMAND(File, "File", "Import and export the road network", EUserInterfaceActionType::Button, FInputChord());
+		Commands.Add(PaletteName_File, {});
+	}
 
 	// Road: the alignment and the coarse road-level operations.
 	{
@@ -92,7 +101,10 @@ void FRoadToolsModeCommands::RegisterCommands()
 	}
 
 	// Settings: panel-only, same as File.
-	Commands.Add(PaletteName_Settings, {});
+	{
+		UI_COMMAND(Settings, "Settings", "Global road network settings", EUserInterfaceActionType::Button, FInputChord());
+		Commands.Add(PaletteName_Settings, {});
+	}
 }
 
 const TArray<FName>& FRoadToolsModeCommands::GetPaletteNames()
