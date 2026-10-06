@@ -38,6 +38,13 @@ void FRoadToolsModeCommands::RegisterCommands()
 	//
 	// The names below are the palette identifiers, and FRoadToolsModeCommands::GetPaletteNames() lists
 	// them in UI order; the toolkit reads that list rather than this map, because a TMap has no order.
+	//
+	// Button labels are deliberately ONE WORD: "Plan", "Height", "Chop", "Link", "Edit", "Curve".
+	// The palette tab already says which group a button belongs to, so a "Road Plan" / "Lane Edit"
+	// style label repeats the tab and, at the default button width, gets clipped to "Road He..." /
+	// "Lane Ed...". This is what the legacy toolbars did - RoadToolbars/RoadToolbar_*.cpp label their
+	// buttons the same way - so the short form is also the established one rather than a compromise.
+	// Anything too long for the button belongs in the tooltip, which has no width limit.
 
 	// File: panel-only. Switching to this palette starts the File tool.
 	//
@@ -54,49 +61,49 @@ void FRoadToolsModeCommands::RegisterCommands()
 	// Road: the alignment and the coarse road-level operations.
 	{
 		TArray<TSharedPtr<FUICommandInfo>>& Palette = Commands.Add(PaletteName_Road);
-		UI_COMMAND(RoadPlan, "Road Plan", "Click to place road alignment points", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(RoadPlan, "Plan", "Click to place road alignment points", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(RoadPlan);
-		UI_COMMAND(RoadHeight, "Road Height", "Edit the height profile of the selected road", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(RoadHeight, "Height", "Edit the height profile of the selected road", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(RoadHeight);
-		UI_COMMAND(RoadChop, "Road Chop", "Chop the selected road, or join another road onto it", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(RoadChop, "Chop", "Chop the selected road, or join another road onto it", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(RoadChop);
-		UI_COMMAND(RoadSplit, "Road Split", "Split the selected road along one of its boundaries", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(RoadSplit, "Split", "Split the selected road along one of its boundaries", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(RoadSplit);
 	}
 
 	// Junction.
 	{
 		TArray<TSharedPtr<FUICommandInfo>>& Palette = Commands.Add(PaletteName_Junction);
-		UI_COMMAND(JunctionLink, "Junction Link", "Inspect and tune the link curves a junction generates", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(JunctionLink, "Link", "Inspect and tune the link curves a junction generates", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(JunctionLink);
 	}
 
 	// Lane.
 	{
 		TArray<TSharedPtr<FUICommandInfo>>& Palette = Commands.Add(PaletteName_Lane);
-		UI_COMMAND(LaneEdit, "Lane Edit", "Move a lane segment, or copy a lane across a boundary", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(LaneEdit, "Edit", "Move a lane segment, or copy a lane across a boundary", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(LaneEdit);
-		UI_COMMAND(LaneCarve, "Lane Carve", "Carve a lane transition between two points on a boundary", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(LaneCarve, "Carve", "Carve a lane transition between two points on a boundary", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(LaneCarve);
-		UI_COMMAND(LaneWidth, "Lane Width", "Widen or narrow the road by editing its width control points", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(LaneWidth, "Width", "Widen or narrow the road by editing its width control points", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(LaneWidth);
 	}
 
 	// Marking.
 	{
 		TArray<TSharedPtr<FUICommandInfo>>& Palette = Commands.Add(PaletteName_Marking);
-		UI_COMMAND(MarkingLane, "Marking Lane", "Edit the lane markings on a road's boundary segments", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(MarkingLane, "Lane", "Edit the lane markings on a road's boundary segments", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(MarkingLane);
-		UI_COMMAND(MarkingPoint, "Marking Point", "Place and edit point markings on a road", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(MarkingPoint, "Point", "Place and edit point markings on a road", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(MarkingPoint);
-		UI_COMMAND(MarkingCurve, "Marking Curve", "Draw and edit spline markings on a road", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(MarkingCurve, "Curve", "Draw and edit spline markings on a road", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(MarkingCurve);
 	}
 
 	// Ground.
 	{
 		TArray<TSharedPtr<FUICommandInfo>>& Palette = Commands.Add(PaletteName_Ground);
-		UI_COMMAND(GroundEdit, "Ground Edit", "Edit the outline a ground area is built from", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(GroundEdit, "Edit", "Edit the outline a ground area is built from", EUserInterfaceActionType::ToggleButton, FInputChord());
 		Palette.Add(GroundEdit);
 	}
 
