@@ -26,6 +26,30 @@ void FRoadToolsModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost
 	FModeToolkit::Init(InitToolkitHost, InOwningMode);
 }
 
+TSharedPtr<SWidget> FRoadToolsModeToolkit::GetInlineContent() const
+{
+	// The base implementation would return exactly this, but it is only ever reached through
+	// UpdatePrimaryModePanel(), which is guarded by HasToolkitBuilder() - and that is false for a plain
+	// FModeToolkit subclass because nothing sets bUsesToolkitBuilder. Overriding it here is what
+	// actually gets the property panel on screen. See the header for the full account.
+	//
+	// Both views are the base's own members, so nothing is duplicated: ModeDetailsView is the
+	// mode-level settings object (UEdMode::SettingsClass, empty for this mode) and DetailsView is what
+	// FModeToolkit::OnToolStarted() fills with the active tool's property sources via
+	// UInteractiveTool::GetToolProperties(). Returning them is enough for both to work.
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			ModeDetailsView.ToSharedRef()
+		]
+		+ SVerticalBox::Slot()
+		.FillHeight(1.0f)
+		[
+			DetailsView.ToSharedRef()
+		];
+}
+
 void FRoadToolsModeToolkit::GetToolPaletteNames(TArray<FName>& PaletteNames) const
 {
 	// The tab strip, in order. The list lives with the commands rather than here because the same names
