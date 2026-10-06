@@ -2,6 +2,7 @@
 // Copyright 2024. All Rights Reserved.
 
 #include "RoadBuilder.h"
+#include "RoadLog.h"
 #include "UObject/CoreRedirects.h"
 #include "HAL/PlatformTime.h"
 
@@ -23,5 +24,5 @@ FCustomCycleCounter::FCustomCycleCounter(const FString& InTag):Tag(InTag)
 FCustomCycleCounter::~FCustomCycleCounter()
 {
 	double ElapsedTime = FPlatformTime::Seconds() - StartTime;
-	UE_LOG(LogRoadBuilder, Log, TEXT("Cost %lf seconds to execute %s"), ElapsedTime, *Tag);
+	RoadLog_Info(TEXT("Cost %lf seconds to execute %s"), ElapsedTime, *Tag);
 }

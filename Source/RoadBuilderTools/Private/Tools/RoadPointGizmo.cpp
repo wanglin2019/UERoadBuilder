@@ -18,6 +18,7 @@
 #include "InteractiveTool.h"
 #include "InteractiveToolManager.h"
 #include "RoadBuilderTools.h"
+#include "RoadLog.h"
 #include "SceneManagement.h"
 #include "Tools/RoadInteractiveTool.h"
 #include "ToolContextInterfaces.h"
@@ -86,7 +87,7 @@ void URoadPointGizmo::EnsureGizmo()
 	// created and then hidden. A null here means the pairwise gizmo manager has no
 	// UCombinedTransformGizmoContextObject in its store, and no amount of visibility work further down can
 	// help. Verbose: once per gizmo, and only meaningful while the gizmo path is being debugged.
-	UE_LOG(LogRoadBuilder, Verbose, TEXT("EnsureGizmo created=%d elements=%d"),
+	RoadLog_Debug(TEXT("EnsureGizmo created=%d elements=%d"),
 		TransformGizmo != nullptr ? 1 : 0, static_cast<int32>(Elements));
 
 	if (TransformGizmo != nullptr)
@@ -140,7 +141,7 @@ void URoadPointGizmo::EnsureGizmo()
 		}
 		if (const ACombinedTransformGizmoActor* CreatedActor = TransformGizmo->GetGizmoActor())
 		{
-			UE_LOG(LogRoadBuilder, Verbose, TEXT("EnsureGizmo handle=%d storeCtx=%d"),
+			RoadLog_Debug(TEXT("EnsureGizmo handle=%d storeCtx=%d"),
 				CreatedActor->TranslateXY != nullptr ? 1 : 0,
 				bStoreHasViewContext ? 1 : 0);
 		}

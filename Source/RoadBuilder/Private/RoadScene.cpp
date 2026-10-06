@@ -280,7 +280,7 @@ void AJunctionActor::Update(TOctree2<FRoadOctreeElement, FRoadOctreeSemantics>& 
 				if (ResultFound)
 					goto _NextGate;
 			}
-		//	UE_LOG(LogRoadBuilder, Warning, TEXT("Can't solve intersection"));
+		//	RoadLog_Warn(TEXT("Can't solve intersection"));
 			Gate.CutDists[SrcSide] = Gate.CornerDists[SrcSide] = -1;
 			Next.CutDists[DstSide] = Next.CornerDists[DstSide] = -1;
 		_NextGate:;

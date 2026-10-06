@@ -7,6 +7,7 @@
 #include "Framework/Commands/Commands.h"
 #include "InteractiveToolManager.h"
 #include "RoadBuilderTools.h"
+#include "RoadLog.h"
 #include "RoadToolsMode.h"
 #include "RoadToolsModeCommands.h"
 #include "Tools/RoadInteractiveTool.h"
@@ -17,7 +18,7 @@ void FRoadToolsModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost
 {
 	// Verbose: the owning mode is what switches the details views on, so its validity here is the
 	// difference between a working property panel and a blank one.
-	UE_LOG(LogRoadBuilder, Verbose, TEXT("toolkit Init host=%d owningMode=%d"),
+	RoadLog_Debug(TEXT("toolkit Init host=%d owningMode=%d"),
 		InitToolkitHost.IsValid() ? 1 : 0, InOwningMode.IsValid() ? 1 : 0);
 
 	// Forwarding the owning mode to the base is what switches on the details views and the automatic
@@ -37,7 +38,7 @@ void FRoadToolsModeToolkit::GetToolPaletteNames(TArray<FName>& PaletteNames) con
 
 	// Verbose: the tab list the mode panel is built from. Called once per palette widget rebuild, so this
 	// is not a per-frame line.
-	UE_LOG(LogRoadBuilder, Verbose, TEXT("GetToolPaletteNames count=%d first=%s"),
+	RoadLog_Debug(TEXT("GetToolPaletteNames count=%d first=%s"),
 		PaletteNames.Num(), PaletteNames.Num() > 0 ? *PaletteNames[0].ToString() : TEXT("none"));
 }
 

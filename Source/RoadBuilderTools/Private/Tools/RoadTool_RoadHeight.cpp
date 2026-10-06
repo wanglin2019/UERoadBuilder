@@ -6,6 +6,7 @@
 #include "InputCoreTypes.h"
 #include "InteractiveToolManager.h"
 #include "RoadBuilderTools.h"
+#include "RoadLog.h"
 #include "SceneManagement.h"
 #include "Tools/RoadArrayChange.h"
 #include "Tools/RoadKeyInputBehavior.h"
@@ -281,7 +282,7 @@ FInputRayHit URoadTool_RoadHeight::CanBeginRoadDrag(const FInputDeviceRay& Press
 
 	// The handle test's own verdict, per tool, so a press that fails to start a drag says whether it found
 	// no handle or was overruled downstream. Verbose: one line per press, not per move.
-	UE_LOG(LogRoadBuilder, Verbose, TEXT("drag roadheight handle=%d pixel=%.1f"),
+	RoadLog_Debug(TEXT("drag roadheight handle=%d pixel=%.1f"),
 		static_cast<int32>(Hit.Handle), Hit.PixelDistance);
 
 	if (!Hit.bHit)

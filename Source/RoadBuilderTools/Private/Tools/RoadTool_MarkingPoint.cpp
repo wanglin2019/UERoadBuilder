@@ -5,6 +5,7 @@
 
 #include "InputCoreTypes.h"
 #include "RoadBuilderTools.h"
+#include "RoadLog.h"
 #include "RoadMarking.h"
 #include "SceneManagement.h"
 #include "Tools/RoadKeyInputBehavior.h"
@@ -178,7 +179,7 @@ FInputRayHit URoadTool_MarkingPoint::CanBeginRoadDrag(const FInputDeviceRay& Pre
 
 	// The handle test's own verdict, per tool, so a press that fails to start a drag says whether it found
 	// no handle or was overruled downstream. Verbose: one line per press, not per move.
-	UE_LOG(LogRoadBuilder, Verbose, TEXT("drag markingpoint handle=%d pixel=%.1f"),
+	RoadLog_Debug(TEXT("drag markingpoint handle=%d pixel=%.1f"),
 		static_cast<int32>(Hit.Handle), Hit.PixelDistance);
 
 	if (!Hit.bHit)

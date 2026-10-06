@@ -13,6 +13,7 @@
 #include "RoadActor.h"
 #include "RoadBoundary.h"
 #include "RoadBuilderTools.h"
+#include "RoadLog.h"
 #include "RoadCurve.h"
 #include "RoadLane.h"
 #include "RoadScene.h"
@@ -34,7 +35,7 @@ void URoadInteractiveTool::AddInputBehavior(UInputBehavior* Behavior, void* Sour
 	// whether the host seam worked for it. A tool whose behaviours never appear here never got that far,
 	// and a null manager / context / world is the difference between a tool that works and one that
 	// silently does nothing. Verbose rather than Log because it is setup noise, not a user-visible event.
-	UE_LOG(LogRoadBuilder, Verbose, TEXT("%s +behavior %s | manager=%d context=%d world=%d"),
+	RoadLog_Debug(TEXT("%s +behavior %s | manager=%d context=%d world=%d"),
 		*GetClass()->GetName(),
 		Behavior != nullptr ? *Behavior->GetClass()->GetName() : TEXT("null"),
 		GetToolManager() != nullptr ? 1 : 0,
@@ -225,7 +226,7 @@ void URoadInteractiveTool::AddClickBehavior()
 		const FDeviceButtonState& State = Input.Mouse.Left;
 		if (State.bPressed || State.bReleased)
 		{
-			UE_LOG(LogRoadBuilder, VeryVerbose, TEXT("poll btn=L press=%d down=%d release=%d"),
+			RoadLog_Trace(TEXT("poll btn=L press=%d down=%d release=%d"),
 				State.bPressed ? 1 : 0, State.bDown ? 1 : 0, State.bReleased ? 1 : 0);
 		}
 		return State;
@@ -237,7 +238,7 @@ void URoadInteractiveTool::AddClickBehavior()
 		// asked for capture - an ignored hit test would otherwise be indistinguishable from a click that
 		// never arrived. VeryVerbose: one line per click candidate, useful only while tracing input.
 		const FInputRayHit Hit = IsHitByRoadClick(ClickPos);
-		UE_LOG(LogRoadBuilder, VeryVerbose, TEXT("hit-test btn=L hit=%d depth=%.1f"),
+		RoadLog_Trace(TEXT("hit-test btn=L hit=%d depth=%.1f"),
 			Hit.bHit ? 1 : 0, Hit.HitDepth);
 		return Hit;
 	};
@@ -245,7 +246,7 @@ void URoadInteractiveTool::AddClickBehavior()
 	{
 		// Info: a left click did reach the tool and is about to act. This is a real user-visible event, so
 		// it stays on at the default Log verbosity.
-		UE_LOG(LogRoadBuilder, Log, TEXT("clicked btn=L"));
+		RoadLog_Info(TEXT("clicked btn=L"));
 		OnRoadClicked(ClickPos, /*bRightButton*/ false);
 	};
 
@@ -360,14 +361,14 @@ void URoadInteractiveTool::AddDragBehavior()
 		// Reports what the handle test decided for a press, which is the one fact that separates "the drag
 		// behaviour was never asked" from "it was asked and declined". Verbose: per-press, not per-move.
 		const FInputRayHit Hit = CanBeginRoadDrag(PressPos);
-		UE_LOG(LogRoadBuilder, Verbose, TEXT("drag begin btn=L hit=%d depth=%.1f"),
+		RoadLog_Debug(TEXT("drag begin btn=L hit=%d depth=%.1f"),
 			Hit.bHit ? 1 : 0, Hit.HitDepth);
 		return Hit;
 	};
 	Behavior->OnClickDragFunc = [this](const FInputDeviceRay& DragPos) { OnRoadDragged(DragPos); };
 	Behavior->OnClickReleaseFunc = [this](const FInputDeviceRay& ReleasePos)
 	{
-		UE_LOG(LogRoadBuilder, Verbose, TEXT("drag release"));
+		RoadLog_Debug(TEXT("drag release"));
 		OnRoadDragEnded();
 	};
 	// A capture the router takes away mid-drag has to end the drag too, or the tool would be left

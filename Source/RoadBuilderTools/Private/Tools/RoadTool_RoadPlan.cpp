@@ -8,6 +8,7 @@
 #include "InteractiveToolManager.h"
 #include "RoadBoundary.h"
 #include "RoadBuilderTools.h"
+#include "RoadLog.h"
 #include "RoadScene.h"
 #include "SceneManagement.h"
 #include "Settings.h"
@@ -70,7 +71,7 @@ void URoadTool_RoadPlan::Setup()
 	// Records what the host gave this tool at the moment it started. A null scene here is the "nothing
 	// works" case; a valid one moves the search to the input path. The behaviours registered above are
 	// reported separately, by the base class. Verbose: setup noise, once per tool start.
-	UE_LOG(LogRoadBuilder, Verbose, TEXT("RoadPlan Setup manager=%d scene=%d roads=%d selectedRoad=%d"),
+	RoadLog_Debug(TEXT("RoadPlan Setup manager=%d scene=%d roads=%d selectedRoad=%d"),
 		GetToolManager() != nullptr ? 1 : 0,
 		GetRoadScene() != nullptr ? 1 : 0,
 		GetRoadScene() != nullptr ? GetRoadScene()->Roads.Num() : -1,
@@ -105,7 +106,7 @@ void URoadTool_RoadPlan::SelectRoadAndPoint(ARoadActor* Road, int32 Index)
 	// Index is what the click asked for and PointIndex is what survived validation, so a discrepancy here
 	// means the hit index and the road's own array disagree - which would hide the gizmo even though the
 	// click looked good. Verbose: per selection, off by default.
-	UE_LOG(LogRoadBuilder, Verbose, TEXT("SelectRoadAndPoint road=%d in=%d stored=%d hasTarget=%d"),
+	RoadLog_Debug(TEXT("SelectRoadAndPoint road=%d in=%d stored=%d hasTarget=%d"),
 		Road != nullptr ? 1 : 0, Index, PointIndex, GetPointIndex() != INDEX_NONE ? 1 : 0);
 
 	Gizmo->Update(GetPointIndex() != INDEX_NONE);
@@ -366,7 +367,7 @@ void URoadTool_RoadPlan::SplitRoadAt(ARoadActor* Road, const FVector& Position)
 
 	// Info: a right click that inserted a point did change the road, so this reports the user-visible
 	// outcome together with the station it landed on.
-	UE_LOG(LogRoadBuilder, Log, TEXT("SplitRoadAt points=%d uv=(%.1f,%.1f)"),
+	RoadLog_Info(TEXT("SplitRoadAt points=%d uv=(%.1f,%.1f)"),
 		Road->RoadPoints.Num(), UV.X, UV.Y);
 
 	TUniquePtr<FRoadArrayChange> Change = FRoadArrayChange::CaptureBefore(Road, GetRoadPointsProperty());
@@ -401,7 +402,7 @@ void URoadTool_RoadPlan::CreateRoadAt(const FVector& Position)
 		// Warning: the host is supposed to guarantee a scene, so a missing one is a host bug rather than
 		// a user error - hence the level. Reported through UE_LOG as well as DisplayMessage because this
 		// project runs with screen messages suppressed, where DisplayMessage() is invisible.
-		UE_LOG(LogRoadBuilder, Warning, TEXT("CreateRoadAt ABORTED: no road scene"));
+		RoadLog_Warn(TEXT("CreateRoadAt ABORTED: no road scene"));
 		if (UInteractiveToolManager* Manager = GetToolManager())
 		{
 			Manager->DisplayMessage(
@@ -414,12 +415,12 @@ void URoadTool_RoadPlan::CreateRoadAt(const FVector& Position)
 	if (Data == nullptr)
 	{
 		// Warning: the CDO always exists, so this can only mean the settings class is missing entirely.
-		UE_LOG(LogRoadBuilder, Warning, TEXT("CreateRoadAt ABORTED: no settings object"));
+		RoadLog_Warn(TEXT("CreateRoadAt ABORTED: no settings object"));
 		return;
 	}
 
 	// Info: a road is being created, which is the one event this tool exists for.
-	UE_LOG(LogRoadBuilder, Log, TEXT("CreateRoadAt pos=(%.0f,%.0f,%.0f) baseHeight=%.0f"),
+	RoadLog_Info(TEXT("CreateRoadAt pos=(%.0f,%.0f,%.0f) baseHeight=%.0f"),
 		Position.X, Position.Y, Position.Z, Data->BaseHeight);
 
 	ARoadActor* Road = nullptr;
@@ -447,7 +448,7 @@ void URoadTool_RoadPlan::CreateRoadAt(const FVector& Position)
 	}
 
 	// Info: the outcome of the create, with the scene's new road count.
-	UE_LOG(LogRoadBuilder, Log, TEXT("AddRoad road=%d sceneRoads=%d"),
+	RoadLog_Info(TEXT("AddRoad road=%d sceneRoads=%d"),
 		Road != nullptr ? 1 : 0, Scene->Roads.Num());
 }
 
@@ -474,7 +475,7 @@ void URoadTool_RoadPlan::InsertPointAt(ARoadActor* Road, const FVector& Position
 
 	// Info: the last line of the create path, so its arrival - and the point count - is the proof that a
 	// click really did produce a road.
-	UE_LOG(LogRoadBuilder, Log, TEXT("InsertPointAt points=%d"), Road->RoadPoints.Num());
+	RoadLog_Info(TEXT("InsertPointAt points=%d"), Road->RoadPoints.Num());
 
 	Change->CaptureAfter();
 	EmitArrayChange(Road, MoveTemp(Change), LOCTEXT("AddRoadPlanPoint", "Add Road Plan Point"));
@@ -547,7 +548,7 @@ void URoadTool_RoadPlan::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 	// Everything the branch below decides on, in one line - so a click that picks nothing, a click with no
 	// scene, and a click that simply took the wrong branch are told apart without another round trip.
 	// Verbose: the criteria a branch decided on, per click.
-	UE_LOG(LogRoadBuilder, Verbose, TEXT("click btn=%s ray=(%.0f,%.0f,%.0f)->(%.2f,%.2f,%.2f) scene=%d roads=%d hitRoad=%d hitPoint=%d selected=%d"),
+	RoadLog_Debug(TEXT("click btn=%s ray=(%.0f,%.0f,%.0f)->(%.2f,%.2f,%.2f) scene=%d roads=%d hitRoad=%d hitPoint=%d selected=%d"),
 		bRightButton ? TEXT("R") : TEXT("L"),
 		Ray.Origin.X, Ray.Origin.Y, Ray.Origin.Z,
 		Ray.Direction.X, Ray.Direction.Y, Ray.Direction.Z,
@@ -563,12 +564,12 @@ void URoadTool_RoadPlan::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 		// road, or - when it hits neither - nothing at all.
 		if (HitRoad != nullptr)
 		{
-			UE_LOG(LogRoadBuilder, Verbose, TEXT("branch=select"));
+			RoadLog_Debug(TEXT("branch=select"));
 			SelectRoadAndPoint(HitRoad, HitPointIndex);
 		}
 		else
 		{
-			UE_LOG(LogRoadBuilder, Verbose, TEXT("branch=reset"));
+			RoadLog_Debug(TEXT("branch=reset"));
 			ResetSelection();
 		}
 		return;
@@ -580,7 +581,7 @@ void URoadTool_RoadPlan::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 	// on, or starts a new one when there is none.
 	if (HitRoad != nullptr)
 	{
-		UE_LOG(LogRoadBuilder, Verbose, TEXT("branch=split pos=(%.0f,%.0f,%.0f)"),
+		RoadLog_Debug(TEXT("branch=split pos=(%.0f,%.0f,%.0f)"),
 			Position.X, Position.Y, Position.Z);
 		SplitRoadAt(HitRoad, Position);
 		return;
@@ -588,13 +589,13 @@ void URoadTool_RoadPlan::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 
 	if (SelectedRoad == nullptr)
 	{
-		UE_LOG(LogRoadBuilder, Verbose, TEXT("branch=create pos=(%.0f,%.0f,%.0f)"),
+		RoadLog_Debug(TEXT("branch=create pos=(%.0f,%.0f,%.0f)"),
 			Position.X, Position.Y, Position.Z);
 		CreateRoadAt(Position);
 		return;
 	}
 
-	UE_LOG(LogRoadBuilder, Verbose, TEXT("branch=insert pos=(%.0f,%.0f,%.0f) points=%d"),
+	RoadLog_Debug(TEXT("branch=insert pos=(%.0f,%.0f,%.0f) points=%d"),
 		Position.X, Position.Y, Position.Z, SelectedRoad->RoadPoints.Num());
 	InsertPointAt(SelectedRoad, Position);
 }
@@ -629,7 +630,7 @@ FInputRayHit URoadTool_RoadPlan::CanBeginRoadDrag(const FInputDeviceRay& PressPo
 
 	// The handle test's own verdict, with the handle it chose, so a press that fails to start a drag says
 	// whether it found no handle or found one and was then overruled somewhere downstream. Verbose.
-	UE_LOG(LogRoadBuilder, Verbose, TEXT("drag plan handle=%d pixel=%.1f"),
+	RoadLog_Debug(TEXT("drag plan handle=%d pixel=%.1f"),
 		static_cast<int32>(Hit.Handle), Hit.PixelDistance);
 
 	if (!Hit.bHit)
@@ -722,7 +723,7 @@ void URoadTool_RoadPlan::OnTick(float DeltaTime)
 	bool bEditorHidden = false;
 	bool bRecentlyRendered = false;
 	const bool bHasActor = Gizmo->GetGizmoActorDiagnostics(bEditorHidden, bRecentlyRendered);
-	UE_LOG(LogRoadBuilder, Verbose,
+	RoadLog_Debug(
 		TEXT("tick gizmo actor=%d editorHidden=%d rendered=%d handles=%d point=%d | %s"),
 		bHasActor ? 1 : 0, bEditorHidden ? 1 : 0, bRecentlyRendered ? 1 : 0,
 		Gizmo->GetGizmoHandleMask(), PointIndex, *Gizmo->GetGizmoWorldDiagnostics());

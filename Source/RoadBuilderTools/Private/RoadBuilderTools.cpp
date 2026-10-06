@@ -3,8 +3,6 @@
 
 #include "RoadBuilderTools.h"
 
-DEFINE_LOG_CATEGORY(LogRoadBuilder);
-
 void FRoadBuilderTools::StartupModule()
 {
 	// Nothing to register: this module only publishes the shared tool layer types.
