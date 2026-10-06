@@ -13,6 +13,7 @@
 #include "InteractiveToolManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "RoadActor.h"
+#include "RoadBuilderTools.h"
 #include "RoadScene.h"
 #include "RoadToolsModeCommands.h"
 #include "RoadToolsModeContextObject.h"
@@ -60,8 +61,9 @@ void URoadToolsMode::Enter()
 	UInteractiveToolManager* ToolManager = GetToolManager();
 	if (ToolManager == nullptr)
 	{
-		// DIAGNOSTIC (remove when the click path is confirmed).
-		UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [1 mode] Enter ABORTED: no tool manager"));
+		// Warning: the base Enter() is supposed to create the tool manager, so this is a host failure
+		// rather than a user error.
+		UE_LOG(LogRoadBuilder, Warning, TEXT("Enter ABORTED: no tool manager"));
 		return;
 	}
 
@@ -73,18 +75,19 @@ void URoadToolsMode::Enter()
 	UContextObjectStore* ContextStore = ToolManager->GetContextObjectStore();
 	if (ContextStore == nullptr)
 	{
-		// DIAGNOSTIC (remove when the click path is confirmed).
-		UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [1 mode] Enter: tool manager has no context object store"));
+		// Warning: same host failure - without a store no tool can reach the world.
+		UE_LOG(LogRoadBuilder, Warning, TEXT("Enter: tool manager has no context object store"));
 	}
 	else
 	{
 		ContextStore->AddContextObject(ContextObject);
 
-		// DIAGNOSTIC (remove when the click path is confirmed): read the interface back exactly the way
-		// a tool does. This single lookup is what every tool depends on to reach the world at all, and
-		// when it fails nothing anywhere says so - each tool just sees null and quietly does nothing.
+		// Read the interface back exactly the way a tool does. This single lookup is what every tool
+		// depends on to reach the world at all, and when it fails nothing anywhere says so - each tool just
+		// sees null and quietly does nothing. Info: one line per mode entry, and the one that says whether
+		// the whole host seam is live.
 		bContextReachable = (ContextStore->FindContext<IRoadEditorContext>() != nullptr);
-		UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [1 mode] Enter: manager=1 store=1 context reachable=%d"),
+		UE_LOG(LogRoadBuilder, Log, TEXT("Enter: manager=1 store=1 context reachable=%d"),
 			bContextReachable ? 1 : 0);
 	}
 
@@ -134,9 +137,9 @@ void URoadToolsMode::Enter()
 		EnterScene = EnterWorld->SpawnActor<ARoadScene>();
 	}
 
-	// DIAGNOSTIC (remove when the click path is confirmed): a null scene here is the "every tool does
-	// nothing" case, so knowing whether Enter() ran and whether it found or spawned one shortens the trail.
-	UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [1 mode] Enter world=%d scene=%d existed=%d spawned=%d roads=%d"),
+	// A null scene here is the "every tool does nothing" case, so knowing whether Enter() ran and whether
+	// it found or spawned one shortens the trail. Info: one line per mode entry.
+	UE_LOG(LogRoadBuilder, Log, TEXT("Enter world=%d scene=%d existed=%d spawned=%d roads=%d"),
 		EnterWorld != nullptr ? 1 : 0,
 		EnterScene != nullptr ? 1 : 0,
 		bSceneExisted ? 1 : 0,
@@ -174,30 +177,30 @@ void URoadToolsMode::Enter()
 	{
 		SelectActiveTool(StartupTool);
 	}
-	UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [1 mode] registered=%d active=%s"),
+	// Info: how many tools were registered, and which one is active - the pair that says the palette is
+	// wired to real tools rather than merely looking right.
+	UE_LOG(LogRoadBuilder, Log, TEXT("registered=%d active=%s"),
 		RegisteredToolCount, *ToolManager->GetActiveToolName(EToolSide::Left));
 }
 
 void URoadToolsMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	// DIAGNOSTIC (remove when the click path is confirmed): the moment a tool becomes the active one.
-	// Without this line the tool never started; with it, everything the palette did is accounted for.
-	UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [2 tool] started %s"),
+	// Info: the moment a tool becomes the active one, which is the other half of the lifecycle pair below.
+	UE_LOG(LogRoadBuilder, Log, TEXT("tool started %s"),
 		Tool != nullptr ? *Tool->GetClass()->GetName() : TEXT("null"));
 }
 
 void URoadToolsMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	// DIAGNOSTIC (remove when the click path is confirmed).
-	UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [2 tool] ended %s"),
+	// Info: pairs with the started line above.
+	UE_LOG(LogRoadBuilder, Log, TEXT("tool ended %s"),
 		Tool != nullptr ? *Tool->GetClass()->GetName() : TEXT("null"));
 }
 
 void URoadToolsMode::Exit()
 {
-	// DIAGNOSTIC (remove when the click path is confirmed): pair for the Enter() line, so a mode that
-	// was re-entered (which is how the diagnostics get re-run) is visible in the log.
-	UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [1 mode] Exit"));
+	// Info: pairs with the Enter() lines, so a mode that was re-entered is visible in the log.
+	UE_LOG(LogRoadBuilder, Log, TEXT("Exit"));
 
 	// Release the capability object before the base tears the tools contexts down.
 	if (UInteractiveToolManager* ToolManager = GetToolManager())
@@ -229,9 +232,10 @@ void URoadToolsMode::PostUndo()
 	{
 		if (!IsValid(Road) || Road->BaseCurve == nullptr)
 		{
-			// DIAGNOSTIC (remove when the undo path is confirmed).
-			UE_LOG(LogTemp, Warning,
-				TEXT("ROADINPUT [5 undo] rebuild skipped: %d roads, one unusable (valid=%d)"),
+			// Warning: the undo left the road list inconsistent. Recoverable for one frame, but it should
+			// not be happening, so it is reported rather than swallowed.
+			UE_LOG(LogRoadBuilder, Warning,
+				TEXT("undo rebuild skipped: %d roads, one unusable (valid=%d)"),
 				Scene->Roads.Num(), IsValid(Road) ? 1 : 0);
 			return;
 		}
@@ -290,9 +294,9 @@ bool URoadToolsMode::HandleClick(FEditorViewportClient* InViewportClient, HHitPr
 	// input behaviour would have produced for the left button.
 	const FRay WorldRay(Click.GetOrigin(), Click.GetDirection());
 
-	// DIAGNOSTIC (remove when the click path is confirmed): the right button's entire route, from the
-	// viewport down to the tool. Nothing between here and the tool can drop the click silently.
-	UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [3 input] legacy click btn=R tool=%s ray=(%.0f,%.0f,%.0f)"),
+	// Verbose: the right button's whole route from the viewport down to the tool. Nothing between here and
+	// the tool can drop the click silently, so this is the criteria line for a right click.
+	UE_LOG(LogRoadBuilder, Verbose, TEXT("legacy click btn=R tool=%s ray=(%.0f,%.0f,%.0f)"),
 		*Tool->GetClass()->GetName(), WorldRay.Origin.X, WorldRay.Origin.Y, WorldRay.Origin.Z);
 
 	return Tool->HandleViewportClick(WorldRay, /*bRightButton*/ true);
@@ -356,9 +360,9 @@ void URoadToolsMode::SelectActiveTool(const TCHAR* ToolId)
 	if (!ToolManager->SelectActiveToolType(EToolSide::Left, ToolId))
 	{
 		// A palette pointing at an unregistered identity is a wiring mistake, not a user error: the tab
-		// would look fine and start nothing. Reported at Warning so it shows up the moment it happens.
-		UE_LOG(LogTemp, Warning,
-			TEXT("ROADINPUT [3 palette] SelectActiveTool: no tool registered as '%s'"), ToolId);
+		// would look fine and start nothing. Warning so it shows up the moment it happens.
+		UE_LOG(LogRoadBuilder, Warning,
+			TEXT("SelectActiveTool: no tool registered as '%s'"), ToolId);
 	}
 }
 
@@ -367,12 +371,12 @@ TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> URoadToolsMode::GetModeCommands(
 	// The palette contents the toolkit's BuildToolPalette() renders; the toolkit names the palettes.
 	TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> Commands = FRoadToolsModeCommands::Get().GetCommands();
 
-	// DIAGNOSTIC (remove when the click path is confirmed): FModeToolkit::BuildToolPalette() looks the
-	// palette name up in this map and renders nothing when the name is not a key, so which keys exist -
-	// and how many buttons each carries - is worth one line. Called once per palette widget rebuild.
+	// FModeToolkit::BuildToolPalette() looks the palette name up in this map and renders nothing when the
+	// name is not a key, so which keys exist - and how many buttons each carries - is worth one line per
+	// palette. Verbose: called once per palette widget rebuild, not per frame, but still rebuild noise.
 	for (const TPair<FName, TArray<TSharedPtr<FUICommandInfo>>>& Pair : Commands)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [3 palette] GetModeCommands palette=%s commands=%d"),
+		UE_LOG(LogRoadBuilder, Verbose, TEXT("GetModeCommands palette=%s commands=%d"),
 			*Pair.Key.ToString(), Pair.Value.Num());
 	}
 

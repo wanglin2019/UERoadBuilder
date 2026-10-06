@@ -17,6 +17,7 @@
 #include "InteractiveGizmoManager.h"
 #include "InteractiveTool.h"
 #include "InteractiveToolManager.h"
+#include "RoadBuilderTools.h"
 #include "SceneManagement.h"
 #include "Tools/RoadInteractiveTool.h"
 #include "ToolContextInterfaces.h"
@@ -81,11 +82,11 @@ void URoadPointGizmo::EnsureGizmo()
 	TransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(OwningTool->GetToolManager(),
 		Elements, OwningTool);
 
-	// DIAGNOSTIC (remove when the drag path is confirmed): the single piece of evidence that tells a
-	// gizmo that was never created apart from one that was created and then hidden. A null here means the
-	// pairwise gizmo manager has no UCombinedTransformGizmoContextObject in its store, and no amount of
-	// visibility work further down can help.
-	UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [6 gizmo] EnsureGizmo created=%d elements=%d"),
+	// The single piece of evidence that tells a gizmo that was never created apart from one that was
+	// created and then hidden. A null here means the pairwise gizmo manager has no
+	// UCombinedTransformGizmoContextObject in its store, and no amount of visibility work further down can
+	// help. Verbose: once per gizmo, and only meaningful while the gizmo path is being debugged.
+	UE_LOG(LogRoadBuilder, Verbose, TEXT("EnsureGizmo created=%d elements=%d"),
 		TransformGizmo != nullptr ? 1 : 0, static_cast<int32>(Elements));
 
 	if (TransformGizmo != nullptr)
@@ -112,10 +113,9 @@ void URoadPointGizmo::EnsureGizmo()
 		TransformGizmo->bUseContextGizmoMode = false;
 		TransformGizmo->ActiveGizmoMode = EToolContextTransformGizmoMode::Combined;
 
-		// DIAGNOSTIC (remove when the drag path is confirmed): reports the two facts that are observable
-		// from outside the gizmo, since the decisive one - UGizmoBaseComponent::bIsViewDependent, which
-		// decides whether GetWorldCorners() scales the handle to a fixed screen size - is a protected
-		// member and cannot be read here.
+		// DIAGNOSTIC: reports the two facts that are observable from outside the gizmo, since the decisive
+		// one - UGizmoBaseComponent::bIsViewDependent, which decides whether GetWorldCorners() scales the
+		// handle to a fixed screen size - is a protected member and cannot be read here.
 		//
 		//   storeCtx=1 -> a UGizmoViewContext was present in the tool manager's store when this gizmo was
 		//                 created. It always is: the gizmo manager's RegisterDefaultGizmos() creates one
@@ -140,7 +140,7 @@ void URoadPointGizmo::EnsureGizmo()
 		}
 		if (const ACombinedTransformGizmoActor* CreatedActor = TransformGizmo->GetGizmoActor())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [6 gizmo] EnsureGizmo handle=%d storeCtx=%d"),
+			UE_LOG(LogRoadBuilder, Verbose, TEXT("EnsureGizmo handle=%d storeCtx=%d"),
 				CreatedActor->TranslateXY != nullptr ? 1 : 0,
 				bStoreHasViewContext ? 1 : 0);
 		}
@@ -170,107 +170,15 @@ void URoadPointGizmo::Update(bool bHasTarget)
 
 	// Moves the gizmo onto the target. This also reaches the write callback, which is why every caller's
 	// write callback has to be a no-op when the point is already where the transform says it is.
-	const FTransform TargetTransform = GetTransform();
-	TransformProxy->SetTransform(TargetTransform);
-	const FVector TargetLocation = TargetTransform.GetLocation();
+	TransformProxy->SetTransform(GetTransform());
 
-	// The handles now draw, but they cannot be grabbed, so the fault is on the other independent path: the
-	// hit test. Every gizmo component's LineTraceComponent calls the same GetWorldEndpoints/GetWorldCorners
-	// helper its render proxy does, and bails out when the helper reports the handle as not visible - so a
-	// handle can be on screen (the tool draws it through its own PDI, which does not cull) yet refuse every
-	// click. That helper measures against the camera held in the gizmo's UGizmoViewContext, and
-	// UEditorInteractiveToolsContext::Render only refreshes that context when the viewport is the hovered
-	// one (EdModeInteractiveToolsContext.cpp:595). This probe reproduces the hit test by hand so the answer
-	// and the camera it was measured against are reported together.
-	//
-	// Throttled: this runs from the tool's Tick, and a ray cast per frame is not free.
-	static double NextHitProbeTime = 0.0;
-	const double Now = FPlatformTime::Seconds();
-	if (Now < NextHitProbeTime)
-	{
-		return;
-	}
-	NextHitProbeTime = Now + 1.0;
-
-	const ACombinedTransformGizmoActor* GizmoActor = TransformGizmo->GetGizmoActor();
-	if (GizmoActor == nullptr)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [8 hit] gizmo actor is null"));
-		return;
-	}
-
-	UGizmoViewContext* ViewContext = nullptr;
-	if (const UInteractiveToolManager* ToolManager = OwningTool->GetToolManager())
-	{
-		if (const UContextObjectStore* Store = ToolManager->GetContextObjectStore())
-		{
-			ViewContext = Store->FindContext<UGizmoViewContext>();
-		}
-	}
-
-	// An unfilled context has an uninitialised ViewLocation, which would make every cull decision and
-	// every pixel-to-world scale wrong; the coordinates are printed so that is visible at a glance.
-	const FVector ViewLocation = (ViewContext != nullptr) ? ViewContext->ViewLocation : FVector(-1.0, -1.0, -1.0);
-
-	const FVector LocalX = TargetTransform.GetUnitAxis(EAxis::X);
-	const FVector LocalY = TargetTransform.GetUnitAxis(EAxis::Y);
-
-	// Reproduce the cull that GetWorldEndpoints/GetWorldCorners applies before it will hand back any
-	// geometry. Both the arrow and the rectangle bail out when |Dot(HandleDirection, ViewDirection)|
-	// exceeds the threshold, where ViewDirection is measured from the handle's own origin back to the
-	// camera. If ViewLocation is degenerate - equal to the origin, or the zero vector - this direction is
-	// not a direction at all, and the comparison becomes meaningless.
-	const FVector CullDirection = (TargetLocation - ViewLocation).GetSafeNormal();
-	const double DotX = FMath::Abs(FVector::DotProduct(LocalX, CullDirection));
-	const double DotY = FMath::Abs(FVector::DotProduct(LocalY, CullDirection));
-
-	// The other half of the hit test is a pixel-distance tolerance, and it is scaled by a factor derived
-	// from the view matrices: UGizmoComponentHitTarget accepts a hit only when the ray passes within
-	// PixelHitDistanceThreshold * CalculateLocalPixelToWorldScale(...) of the handle. That helper divides
-	// a world-space span by the screen-space span of the same offset, and returns zero when the view's
-	// right/up axes come back empty (GizmoRenderingUtil.cpp:60-81) - leaving a tolerance of exactly zero,
-	// which rejects every ray no matter where it lands. Printing the axes and the derived scale tells that
-	// apart from a geometric miss.
-	const FVector ViewRight = (ViewContext != nullptr) ? ViewContext->GetViewRight() : FVector::ZeroVector;
-	const FVector ViewUp = (ViewContext != nullptr) ? ViewContext->GetViewUp() : FVector::ZeroVector;
-	const float PixelToWorldScale = (ViewContext != nullptr)
-		? GizmoRenderingUtil::CalculateLocalPixelToWorldScale(ViewContext, TargetLocation) : -1.0f;
-
-	// Aim where the handles actually are, not at a fixed world offset. Both the drawn handles and the
-	// gizmo's own hit geometry are scaled by PixelToWorldScale: the arrow runs from 20px to 80px out and
-	// the plane square is 30px on a side (CombinedTransformGizmo.cpp:105-146). Probing at a fixed 40 world
-	// units would fall in the empty gap between the gizmo origin and the arrow, and report a miss that
-	// says nothing about the real hit path.
-	const float ProbeArrowDistance = PixelToWorldScale * 50.0f;   // mid-shaft of the 20..80px arrow
-	const float ProbePlaneOffset = PixelToWorldScale * 15.0f;     // halfway into the 30px square
-
-	// A ray from the camera at a point on the handle, which is what a click there amounts to.
-	auto TraceHandle = [&ViewContext](UPrimitiveComponent* Component, const FVector& HandlePoint) -> int32
-	{
-		if (Component == nullptr)
-		{
-			return -1;
-		}
-		const FVector Start = (ViewContext != nullptr) ? ViewContext->ViewLocation : (HandlePoint + FVector(0, 0, 10000));
-		FHitResult Hit;
-		return Component->LineTraceComponent(Hit, Start, HandlePoint,
-			FCollisionQueryParams(SCENE_QUERY_STAT(RoadGizmoHitProbe), true)) ? 1 : 0;
-	};
-
-	const int32 HitX = TraceHandle(GizmoActor->TranslateX, TargetLocation + LocalX * ProbeArrowDistance);
-	const int32 HitY = TraceHandle(GizmoActor->TranslateY, TargetLocation + LocalY * ProbeArrowDistance);
-	const int32 HitPlane = TraceHandle(Cast<UPrimitiveComponent>(GizmoActor->TranslateXY),
-		TargetLocation + ProbePlaneOffset * LocalX + ProbePlaneOffset * LocalY);
-
-	UE_LOG(LogTemp, Warning,
-		TEXT("ROADINPUT [8 hit] ctx=%d viewLoc=(%.0f,%.0f,%.0f) dist=%.1f | xHit=%d yHit=%d planeHit=%d | dotX=%.3f dotY=%.3f"),
-		ViewContext != nullptr ? 1 : 0,
-		ViewLocation.X, ViewLocation.Y, ViewLocation.Z,
-		FVector::Distance(TargetLocation, ViewLocation), HitX, HitY, HitPlane, DotX, DotY);
-	UE_LOG(LogTemp, Warning,
-		TEXT("ROADINPUT [8 hit] viewRight=(%.3f,%.3f,%.3f) viewUp=(%.3f,%.3f,%.3f) pxToWorld=%.6f probe=%.1f"),
-		ViewRight.X, ViewRight.Y, ViewRight.Z, ViewUp.X, ViewUp.Y, ViewUp.Z,
-		PixelToWorldScale, ProbeArrowDistance);
+	// A one-shot diagnostic used to stand here: a throttled (1 Hz) ray cast that reproduced the gizmo's
+	// own hit test by hand and logged the view context, the cull dots and the pixel-to-world scale. It
+	// answered why the handles drew but would not grab - UGizmoComponentHitTarget shares the
+	// GetWorldEndpoints/GetWorldCorners cull with the render proxy, so a handle the cull reports as
+	// invisible refuses every click even while the tool draws it. The finding was the same view-dependent
+	// cull documented in EnsureGizmo() above, and the fix (ask for the axis arrows as well) is in the
+	// tools' element flags, so the probe has no ongoing job and was removed rather than tiered.
 }
 
 void URoadPointGizmo::Render(FPrimitiveDrawInterface* PDI, const FSceneView* View) const

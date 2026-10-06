@@ -4,6 +4,7 @@
 #include "Tools/RoadTool_MarkingPoint.h"
 
 #include "InputCoreTypes.h"
+#include "RoadBuilderTools.h"
 #include "RoadMarking.h"
 #include "SceneManagement.h"
 #include "Tools/RoadKeyInputBehavior.h"
@@ -175,9 +176,9 @@ FInputRayHit URoadTool_MarkingPoint::CanBeginRoadDrag(const FInputDeviceRay& Pre
 
 	const FRoadGizmoHit Hit = Gizmo->HitTestHandle(PressPos.WorldRay, PixelToWorld);
 
-	// DIAGNOSTIC (remove when the drag path is confirmed): the handle test's own verdict, per tool, so a
-	// press that fails to start a drag says whether it found no handle or was overruled downstream.
-	UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [9 drag] markingpoint handle=%d pixel=%.1f"),
+	// The handle test's own verdict, per tool, so a press that fails to start a drag says whether it found
+	// no handle or was overruled downstream. Verbose: one line per press, not per move.
+	UE_LOG(LogRoadBuilder, Verbose, TEXT("drag markingpoint handle=%d pixel=%.1f"),
 		static_cast<int32>(Hit.Handle), Hit.PixelDistance);
 
 	if (!Hit.bHit)
