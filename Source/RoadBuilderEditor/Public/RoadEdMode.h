@@ -85,6 +85,18 @@ public:
 	FRoadTool* FindRoadTool(ERoadToolType ToolType) const;
 
 	/**
+	 * The current tool, or nullptr when none is set.
+	 *
+	 * The base FEdMode::CurrentTool is nullable, so every use must go through here. The overrides below
+	 * used to cast it unguarded, which is a latent null dereference for any caller that runs before the
+	 * first tool is selected. GetCurrentToolType already guarded its own read; this gives the rest of the
+	 * class the same protection instead of leaving each override to remember it.
+	 *
+	 * Defined out of line: FRoadTool is only forward declared here, and a static_cast needs the complete type.
+	 */
+	FRoadTool* GetCurrentRoadTool() const;
+
+	/**
 	 * Maps a tool to the object shown for it in the settings panel. Returns nullptr for tools without a settings panel.
 	 * The mapping is tool metadata, so it lives in the mode rather than in the panel.
 	 */

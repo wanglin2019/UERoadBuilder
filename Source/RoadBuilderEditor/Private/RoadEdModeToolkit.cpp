@@ -75,7 +75,7 @@ void FRoadEdModeToolkit::OnToolPaletteChanged(FName PaletteName)
 
 void FRoadEdModeToolkit::SelectParent()
 {
-	if (FRoadTool* Tool = static_cast<FRoadTool*>(FEdModeRoad::Get()->GetCurrentTool()))
+	if (FRoadTool* Tool = FEdModeRoad::Get()->GetCurrentRoadTool())
 		Tool->SelectParent();
 }
 #undef LOCTEXT_NAMESPACE

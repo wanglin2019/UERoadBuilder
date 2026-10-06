@@ -72,9 +72,15 @@ FEdModeRoad::~FEdModeRoad()
 		delete Tool;
 }
 
+FRoadTool* FEdModeRoad::GetCurrentRoadTool() const
+{
+	return static_cast<FRoadTool*>(CurrentTool);
+}
+
 ERoadToolType FEdModeRoad::GetCurrentToolType() const
 {
-	return CurrentTool ? static_cast<FRoadTool*>(CurrentTool)->GetToolType() : ERoadToolType::None;
+	FRoadTool* Tool = GetCurrentRoadTool();
+	return Tool ? Tool->GetToolType() : ERoadToolType::None;
 }
 
 FRoadTool* FEdModeRoad::FindRoadTool(ERoadToolType ToolType) const
@@ -169,13 +175,19 @@ void FEdModeRoad::Exit()
 
 void FEdModeRoad::NotifyPreChange(FProperty* PropertyAboutToChange)
 {
+	// Only the current tool's settings are edited, so a missing tool means nothing is being changed.
+	// Guard rather than assert: the panel outlives tool switches, so this can fire while no tool is set.
+	FRoadTool* Tool = GetCurrentRoadTool();
+	if (!Tool)
+		return;
 	const FScopedTransaction Transaction(LOCTEXT("NotifyPreChange", "NotifyPreChange"));
-	static_cast<FRoadTool*>(CurrentTool)->NotifyPreChange(PropertyAboutToChange);
+	Tool->NotifyPreChange(PropertyAboutToChange);
 }
 
 void FEdModeRoad::PostUndo()
 {
-	static_cast<FRoadTool*>(CurrentTool)->Reset();
+	if (FRoadTool* Tool = GetCurrentRoadTool())
+		Tool->Reset();
 }
 
 bool FEdModeRoad::GetCursor(EMouseCursor::Type& OutCursor) const
@@ -192,37 +204,46 @@ bool FEdModeRoad::GetCursor(EMouseCursor::Type& OutCursor) const
 
 bool FEdModeRoad::ShouldDrawWidget() const
 {
-	if (((FRoadTool*)CurrentTool)->ShouldDrawWidget())
-		return true;
+	if (FRoadTool* Tool = GetCurrentRoadTool())
+	{
+		if (Tool->ShouldDrawWidget())
+			return true;
+	}
 	return FEdMode::ShouldDrawWidget();
 }
 
 FVector FEdModeRoad::GetWidgetLocation() const
 {
-	return ((FRoadTool*)CurrentTool)->GetWidgetLocation();
+	FRoadTool* Tool = GetCurrentRoadTool();
+	return Tool ? Tool->GetWidgetLocation() : FVector::ZeroVector;
 }
 
 bool FEdModeRoad::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)
 {
-	return ((FRoadTool*)CurrentTool)->GetCustomDrawingCoordinateSystem(InMatrix, InData);
+	FRoadTool* Tool = GetCurrentRoadTool();
+	return Tool ? Tool->GetCustomDrawingCoordinateSystem(InMatrix, InData) : false;
 }
 
 EAxisList::Type FEdModeRoad::GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const
 {
 	if (InWidgetMode != UE::Widget::WM_Translate)
 		return EAxisList::None;
-	return ((FRoadTool*)CurrentTool)->GetWidgetAxisToDraw();
+	FRoadTool* Tool = GetCurrentRoadTool();
+	return Tool ? Tool->GetWidgetAxisToDraw() : EAxisList::None;
 }
 
 bool FEdModeRoad::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
 {
-	if (((FRoadTool*)CurrentTool)->HandleClick(InViewportClient, HitProxy, Click))
-		return true;
+	if (FRoadTool* Tool = GetCurrentRoadTool())
+	{
+		if (Tool->HandleClick(InViewportClient, HitProxy, Click))
+			return true;
+	}
 #if 0
 	if (Click.GetKey() == EKeys::RightMouseButton)
 	{
 		TSharedPtr<SEditorViewport> ViewportWidget = InViewportClient->GetEditorViewportWidget();
-		TSharedPtr<SWidget> MenuContents = ((FRoadTool*)CurrentTool)->GenerateContextMenu();
+		TSharedPtr<SWidget> MenuContents = GetCurrentRoadTool()->GenerateContextMenu();
 		FSlateApplication::Get().PushMenu(ViewportWidget.ToSharedRef(), FWidgetPath(), MenuContents.ToSharedRef(), Click.GetClickPos(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
 		return true;
 	}
