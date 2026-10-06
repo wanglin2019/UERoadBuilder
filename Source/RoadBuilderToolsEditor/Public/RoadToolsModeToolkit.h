@@ -21,6 +21,8 @@ public:
 	/** FModeToolkit implementation */
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
 	virtual void GetToolPaletteNames(TArray<FName>& PaletteNames) const override;
+	virtual FText GetToolPaletteDisplayName(FName PaletteName) const override;
+	virtual void OnToolPaletteChanged(FName PaletteName) override;
 
 	/** IToolkit implementation */
 	virtual FName GetToolkitFName() const override;

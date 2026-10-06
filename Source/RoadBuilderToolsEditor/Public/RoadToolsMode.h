@@ -85,6 +85,25 @@ public:
 	/** The host capability object handed to the tools through UContextObjectStore. */
 	URoadToolsModeContextObject* GetRoadEditorContextObject() const { return ContextObject; }
 
+	/**
+	 * The tool a palette should start on, as a registered tool identity (RoadToolIds).
+	 *
+	 * Null for a palette that owes no tool, which today means a name that is not one of the palettes.
+	 * Returns the identity rather than selecting anything so the caller decides when the switch happens;
+	 * the toolkit does it from OnToolPaletteChanged, where the mode is already being handed a palette.
+	 */
+	static const TCHAR* GetDefaultToolForPalette(FName PaletteName);
+
+	/**
+	 * Starts one of this mode's tools by its registered identity.
+	 *
+	 * The mode owns the tool manager, so this is the mode's own way of doing what the palette buttons do
+	 * through the framework. SelectActiveToolType() returns false for an identity that was never
+	 * registered, which is reported rather than swallowed - a palette that silently starts nothing looks
+	 * identical to one that works until the user tries to use it.
+	 */
+	void SelectActiveTool(const TCHAR* ToolId);
+
 private:
 	/** The road scene of the edited world, or null. Resolved rather than cached; see Enter(). */
 	ARoadScene* FindRoadScene() const;

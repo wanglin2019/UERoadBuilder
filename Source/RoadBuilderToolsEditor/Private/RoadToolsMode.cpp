@@ -167,9 +167,15 @@ void URoadToolsMode::Enter()
 	// DIAGNOSTIC (remove when the click path is confirmed): the return value of SelectActiveToolType() is
 	// false when the identifier was never registered above, which is exactly the failure that leaves the
 	// palette looking fine while no tool is ever built. OnToolStarted() below reports the other half.
-	const bool bSelected = ToolManager->SelectActiveToolType(EToolSide::Left, RoadToolIds::RoadPlan);
-	UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [1 mode] registered=%d SelectActiveToolType(RoadPlan)=%d active=%s"),
-		RegisteredToolCount, bSelected ? 1 : 0, *ToolManager->GetActiveToolName(EToolSide::Left));
+	//
+	// The startup tool is the Road palette's entry tool, taken from the same mapping the palette tabs use,
+	// so the mode opens on the tab the toolkit will also show as current.
+	if (const TCHAR* StartupTool = GetDefaultToolForPalette(PaletteName_Road))
+	{
+		SelectActiveTool(StartupTool);
+	}
+	UE_LOG(LogTemp, Warning, TEXT("ROADINPUT [1 mode] registered=%d active=%s"),
+		RegisteredToolCount, *ToolManager->GetActiveToolName(EToolSide::Left));
 }
 
 void URoadToolsMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
@@ -316,6 +322,44 @@ URoadInteractiveTool* URoadToolsMode::GetActiveRoadTool() const
 void URoadToolsMode::CreateToolkit()
 {
 	Toolkit = MakeShareable(new FRoadToolsModeToolkit);
+}
+
+const TCHAR* URoadToolsMode::GetDefaultToolForPalette(FName PaletteName)
+{
+	// One tool per palette, the one that palette's switch should land on. A palette whose legacy
+	// counterpart had no buttons still names a tool, because the point of that tab is the panel the
+	// tool brings up: File and Settings hold no button, so entering the tab is the only way in.
+	//
+	// This is the only place that maps a palette to its entry tool, so a renamed palette or a moved
+	// tool changes here and nowhere else. Every name is a registered tool identity (RoadToolIds).
+	if (PaletteName == PaletteName_File) { return RoadToolIds::File; }
+	if (PaletteName == PaletteName_Road) { return RoadToolIds::RoadPlan; }
+	if (PaletteName == PaletteName_Junction) { return RoadToolIds::JunctionLink; }
+	if (PaletteName == PaletteName_Lane) { return RoadToolIds::LaneEdit; }
+	if (PaletteName == PaletteName_Marking) { return RoadToolIds::MarkingLane; }
+	if (PaletteName == PaletteName_Ground) { return RoadToolIds::GroundEdit; }
+	if (PaletteName == PaletteName_Settings) { return RoadToolIds::Settings; }
+
+	return nullptr;
+}
+
+void URoadToolsMode::SelectActiveTool(const TCHAR* ToolId)
+{
+	UInteractiveToolManager* ToolManager = GetToolManager();
+	if (ToolManager == nullptr || ToolId == nullptr)
+	{
+		return;
+	}
+
+	// EToolSide::Left is the side Enter() registered every tool against, and the same side the palette
+	// buttons drive through the framework, so both routes end at the same active tool.
+	if (!ToolManager->SelectActiveToolType(EToolSide::Left, ToolId))
+	{
+		// A palette pointing at an unregistered identity is a wiring mistake, not a user error: the tab
+		// would look fine and start nothing. Reported at Warning so it shows up the moment it happens.
+		UE_LOG(LogTemp, Warning,
+			TEXT("ROADINPUT [3 palette] SelectActiveTool: no tool registered as '%s'"), ToolId);
+	}
 }
 
 TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> URoadToolsMode::GetModeCommands() const

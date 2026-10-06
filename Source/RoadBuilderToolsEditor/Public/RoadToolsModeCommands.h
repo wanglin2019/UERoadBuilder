@@ -7,6 +7,25 @@
 #include "Framework/Commands/Commands.h"
 
 /**
+ * Palette names of the new road editing mode, in UI order.
+ *
+ * These are the identifiers the toolbar tabs are built from: the toolkit lists them for the tab strip,
+ * and the mode's commands are stored under them. They deliberately spell the legacy palette names
+ * (File / Road / Junction / Lane / Marking / Ground / Settings) because the two modes sit side by side
+ * in the mode dropdown and are meant to be comparable.
+ *
+ * Independent of the legacy layer's own constants of the same spelling on purpose: that module is
+ * retained, and a shared FName would tie their lifetimes together for no gain.
+ */
+extern const FName PaletteName_File;
+extern const FName PaletteName_Road;
+extern const FName PaletteName_Junction;
+extern const FName PaletteName_Lane;
+extern const FName PaletteName_Marking;
+extern const FName PaletteName_Ground;
+extern const FName PaletteName_Settings;
+
+/**
  * Commands of the new road editing mode.
  *
  * These carry the double duty that makes the UEdMode framework click: UI_COMMAND builds the button,
@@ -28,6 +47,9 @@ public:
 
 	/** Palette name -> commands, as consumed by UEdMode::GetModeCommands(). */
 	static TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetCommands();
+
+	/** Palette names in UI order. This is the ordering source of truth; do not derive it from the map. */
+	static const TArray<FName>& GetPaletteNames();
 
 	/** Drops road alignment points. */
 	TSharedPtr<FUICommandInfo> RoadPlan;
