@@ -355,21 +355,33 @@ const TCHAR* URoadToolsMode::GetDefaultToolForPalette(FName PaletteName)
 
 void URoadToolsMode::SelectActiveTool(const TCHAR* ToolId)
 {
-	UInteractiveToolManager* ToolManager = GetToolManager();
-	if (ToolManager == nullptr || ToolId == nullptr)
+	if (ToolId == nullptr)
 	{
 		return;
 	}
 
-	// EToolSide::Left is the side Enter() registered every tool against, and the same side the palette
-	// buttons drive through the framework, so both routes end at the same active tool.
-	if (!ToolManager->SelectActiveToolType(EToolSide::Left, ToolId))
+	// StartTool(), not SelectActiveToolType(): the latter only stores the builder on
+	// UInteractiveToolManager::ActiveLeftBuilder and starts nothing, so the palette would switch and
+	// leave the previous tool running. StartTool() is the same entry point RegisterTool() wires the
+	// palette buttons to, so a palette switch and a button click take the identical path.
+	//
+	// It is also deliberately asynchronous: UEditorInteractiveToolsContext::StartTool() queues the
+	// identifier and starts the tool on the next Tick(). That is harmless here - the tool is running
+	// well before the user can click anything.
+	UEditorInteractiveToolsContext* ToolsContext = GetInteractiveToolsContext();
+	if (ToolsContext == nullptr)
 	{
-		// A palette pointing at an unregistered identity is a wiring mistake, not a user error: the tab
-		// would look fine and start nothing. Warning so it shows up the moment it happens.
-		RoadLog_Warn(
-			TEXT("SelectActiveTool: no tool registered as '%s'"), ToolId);
+		// No tools context means no tool can ever start, which is a host problem rather than a user
+		// error. Warning so it is visible instead of looking like a dead palette.
+		RoadLog_Warn(TEXT("SelectActiveTool: no interactive tools context, cannot start '%s'"), ToolId);
+		return;
 	}
+
+	ToolsContext->StartTool(FString(ToolId));
+
+	// Info: which tool a palette switch actually asked for. Pair this with the "tool started" line in
+	// OnToolStarted() - if this prints but that one does not, the tool failed to build.
+	RoadLog_Info(TEXT("SelectActiveTool request '%s'"), ToolId);
 }
 
 TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> URoadToolsMode::GetModeCommands() const
