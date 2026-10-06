@@ -5,9 +5,12 @@
 
 #include "EdMode.h"
 #include "Framework/Commands/Commands.h"
+#include "IDetailsView.h"
 #include "InteractiveToolManager.h"
+#include "PropertyEditorModule.h"
 #include "RoadBuilderTools.h"
 #include "RoadLog.h"
+#include "RoadToolsCallInEditorDetails.h"
 #include "RoadToolsMode.h"
 #include "RoadToolsModeCommands.h"
 #include "Tools/RoadInteractiveTool.h"
@@ -24,6 +27,22 @@ void FRoadToolsModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost
 	// Forwarding the owning mode to the base is what switches on the details views and the automatic
 	// tool <-> panel wiring, so this override must not be skipped.
 	FModeToolkit::Init(InitToolkitHost, InOwningMode);
+
+	// Teach the property panel to draw CallInEditor functions, not just properties.
+	//
+	// The engine's details view only ever renders FProperty, so a tool whose settings object is nothing
+	// but CallInEditor functions - USettings_File, whose only member is Xodr() - came out as a blank
+	// panel with no sign that anything was missing. The legacy layer had the same problem and solved it
+	// with its own IDetailCustomization; this module keeps its own copy (see the class comment).
+	//
+	// Registered on DetailsView only. The tool property panel is where these buttons belong, and
+	// ModeDetailsView shows the mode's own settings object, which has no CallInEditor functions.
+	if (DetailsView.IsValid())
+	{
+		DetailsView->RegisterInstancedCustomPropertyLayout(
+			UObject::StaticClass(),
+			FOnGetDetailCustomizationInstance::CreateStatic(&FRoadToolsCallInEditorDetails::MakeInstance));
+	}
 
 	// Both details views now exist (the base built them above), so the container that shows them can be
 	// built once and kept. It must be built here rather than inside GetInlineContent(): Slate calls

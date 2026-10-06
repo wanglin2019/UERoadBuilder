@@ -31,6 +31,12 @@ namespace UnrealBuildTool.Rules
 					// free - ModelingToolsEditorMode declares exactly this pair.
 					"EditorInteractiveToolsFramework",
 					"InteractiveToolsFramework",
+					// The property panel of the toolkit is an IDetailsView, and the CallInEditor button
+					// strips are added through a custom layout registered on it.
+					"PropertyEditor",
+					// RoadToolsCallInEditorDetails walks UFunctions and skips editor utility blueprints via
+					// FBlueprintEditorUtils, which lives here.
+					"BlueprintGraph",
 					"RoadBuilder",
 					"RoadBuilderTools",
 					"UnrealEd",
