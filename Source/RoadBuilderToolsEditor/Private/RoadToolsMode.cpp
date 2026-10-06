@@ -168,15 +168,20 @@ void URoadToolsMode::Enter()
 	RegisterTool(ModeCommands.File, RoadToolIds::File, NewObject<URoadTool_FileBuilder>(this)); ++RegisteredToolCount;
 	RegisterTool(ModeCommands.Settings, RoadToolIds::Settings, NewObject<URoadTool_SettingsBuilder>(this)); ++RegisteredToolCount;
 
-	// DIAGNOSTIC (remove when the click path is confirmed): the return value of SelectActiveToolType() is
-	// false when the identifier was never registered above, which is exactly the failure that leaves the
-	// palette looking fine while no tool is ever built. OnToolStarted() below reports the other half.
+	// Tell the toolkit which palette is current before starting anything in it.
 	//
-	// The startup tool is the Road palette's entry tool, taken from the same mapping the palette tabs use,
-	// so the mode opens on the tab the toolkit will also show as current.
-	if (const TCHAR* StartupTool = GetDefaultToolForPalette(PaletteName_Road))
+	// The tab strip reads its own current value from FModeToolkit::GetCurrentPalette(), which starts out
+	// as NAME_None, and SSegmentedControl only fires OnValueChanged when the value actually changes. So
+	// without this call the strip opens with no tab highlighted, and OnToolPaletteChanged - the only
+	// place a palette's entry tool is started from - never runs for the palette the mode opens on.
+	//
+	// The legacy FEdModeRoad::Enter() made the same call (SetCurrentPalette(PaletteName_Road)) and it is
+	// load-bearing for the same reason: it is what routes the switch into the palette-to-tool mapping.
+	// Doing it here rather than duplicating the tool lookup below keeps one path in: the switch starts the
+	// tool, and the toolkit's own default-tool mapping decides which one that is.
+	if (Toolkit.IsValid())
 	{
-		SelectActiveTool(StartupTool);
+		Toolkit->SetCurrentPalette(PaletteName_Road);
 	}
 	// Info: how many tools were registered, and which one is active - the pair that says the palette is
 	// wired to real tools rather than merely looking right.
