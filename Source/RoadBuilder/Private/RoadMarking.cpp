@@ -35,10 +35,16 @@ void UMarkingCurve::BuildMesh(FRoadActorBuilder& Builder)
 void UMarkingCurve::InsertPoint(const FVector2D& Pos, int& Index)
 {
 	Modify();
-	if (Index == Points.Num() - 1)
+
+	// Same contract as ARoadActor::InsertPoint: append when the index already names the last point, and
+	// otherwise insert before it so the index still names the new point on return. INDEX_NONE is "no
+	// anchor at all" and takes the append branch - testing against Num()-1 alone let it through to the
+	// insert branch, which then indexed the array with -1.
+	if (Index < 0 || Index == Points.Num() - 1)
 		Index = Points.AddDefaulted();
 	else
 		Points.InsertDefaulted(Index);
+
 	FMarkingCurvePoint& Point = Points[Index];
 	Point.Pos = Pos;
 	if (Index > 0)

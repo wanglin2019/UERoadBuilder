@@ -235,10 +235,18 @@ public:
 	TArray<FHeightSegment> CutHeightSegments(double R_Start, double R_End);
 	void InsertPoint(const FVector2D& Pos, int& Index)
 	{
-		if (Index == RoadPoints.Num() - 1)
+		// Index names where the new point lands: appending when it already points at the last point, and
+		// otherwise inserting *before* it, so the index still names the new point on return. This is the
+		// same contract UMarkingCurve::InsertPoint uses, and the two must agree because a caller passes
+		// one index protocol to both.
+		//
+		// INDEX_NONE means "no anchor at all" - the empty curve, and any right click that did not resolve
+		// to a point - and is mapped onto the append branch. The old code compared against Num()-1 only,
+		// so INDEX_NONE fell through to the insert branch and indexed the array with -1.
+		if (Index < 0 || Index == RoadPoints.Num() - 1)
 			Index = RoadPoints.AddDefaulted();
 		else
-			RoadPoints.InsertDefaulted(0);
+			RoadPoints.InsertDefaulted(Index);
 		RoadPoints[Index].Pos = Pos;
 	}
 	int AddPoint(double Dist)
