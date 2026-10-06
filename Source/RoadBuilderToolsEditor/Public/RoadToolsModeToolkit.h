@@ -39,4 +39,14 @@ public:
 	/** IToolkit implementation */
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
+
+private:
+	/**
+	 * The widget returned by GetInlineContent(). Built once in Init() and cached.
+	 *
+	 * Slate calls GetInlineContent() repeatedly and requires the same widget instance each time - a new
+	 * one per call would discard the widget the mode panel is already displaying. The legacy toolkit
+	 * caches its panel (RoadEdWidget) for exactly this reason.
+	 */
+	TSharedPtr<SWidget> InlineContent;
 };

@@ -24,20 +24,14 @@ void FRoadToolsModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost
 	// Forwarding the owning mode to the base is what switches on the details views and the automatic
 	// tool <-> panel wiring, so this override must not be skipped.
 	FModeToolkit::Init(InitToolkitHost, InOwningMode);
-}
 
-TSharedPtr<SWidget> FRoadToolsModeToolkit::GetInlineContent() const
-{
-	// The base implementation would return exactly this, but it is only ever reached through
-	// UpdatePrimaryModePanel(), which is guarded by HasToolkitBuilder() - and that is false for a plain
-	// FModeToolkit subclass because nothing sets bUsesToolkitBuilder. Overriding it here is what
-	// actually gets the property panel on screen. See the header for the full account.
-	//
-	// Both views are the base's own members, so nothing is duplicated: ModeDetailsView is the
-	// mode-level settings object (UEdMode::SettingsClass, empty for this mode) and DetailsView is what
-	// FModeToolkit::OnToolStarted() fills with the active tool's property sources via
-	// UInteractiveTool::GetToolProperties(). Returning them is enough for both to work.
-	return SNew(SVerticalBox)
+	// Both details views now exist (the base built them above), so the container that shows them can be
+	// built once and kept. It must be built here rather than inside GetInlineContent(): Slate calls
+	// GetInlineContent() repeatedly and expects the same widget back every time, so returning a freshly
+	// SNew'd box on each call would throw away the widget the panel already holds. The legacy toolkit
+	// caches its panel for the same reason.
+	InlineContent =
+		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
@@ -48,6 +42,22 @@ TSharedPtr<SWidget> FRoadToolsModeToolkit::GetInlineContent() const
 		[
 			DetailsView.ToSharedRef()
 		];
+
+	// Info: one line per mode entry. If the panel is blank, the thing to check is which of these two
+	// views was actually handed a tool by OnToolStarted() - "panel built" and "panel populated" are
+	// separate steps and only the second one puts properties on screen.
+	RoadLog_Info(TEXT("toolkit inline content built modeDetails=%d details=%d"),
+		ModeDetailsView.IsValid() ? 1 : 0, DetailsView.IsValid() ? 1 : 0);
+}
+
+TSharedPtr<SWidget> FRoadToolsModeToolkit::GetInlineContent() const
+{
+	// The base returns an empty TSharedPtr, and the only place its own content would have been wired up
+	// (UpdatePrimaryModePanel's HasToolkitBuilder() branch) never runs for a plain FModeToolkit subclass
+	// because nothing in the engine sets bUsesToolkitBuilder. So the panel is supplied from here instead.
+	//
+	// Return the cached widget, never a new one: see the construction in Init().
+	return InlineContent;
 }
 
 void FRoadToolsModeToolkit::GetToolPaletteNames(TArray<FName>& PaletteNames) const
@@ -80,12 +90,20 @@ void FRoadToolsModeToolkit::OnToolPaletteChanged(FName PaletteName)
 	//
 	// Every other palette starts on the tool the player expects from that row of buttons, so switching
 	// tabs always leaves a working tool active rather than the one from the tab just left.
-	if (URoadToolsMode* Mode = Cast<URoadToolsMode>(GetScriptableEditorMode().Get()))
+	URoadToolsMode* Mode = Cast<URoadToolsMode>(GetScriptableEditorMode().Get());
+	const TCHAR* DefaultTool = URoadToolsMode::GetDefaultToolForPalette(PaletteName);
+
+	// Verbose: the tab switch itself. The pair "palette changed -> tool requested" lives here; the
+	// matching "tool started" line comes from the mode. If this never prints, the tab strip is not
+	// routing through SetCurrentPalette at all.
+	RoadLog_Debug(TEXT("palette changed '%s' mode=%d tool=%s"),
+		*PaletteName.ToString(),
+		Mode != nullptr ? 1 : 0,
+		DefaultTool != nullptr ? DefaultTool : TEXT("none"));
+
+	if (Mode != nullptr && DefaultTool != nullptr)
 	{
-		if (const TCHAR* DefaultTool = URoadToolsMode::GetDefaultToolForPalette(PaletteName))
-		{
-			Mode->SelectActiveTool(DefaultTool);
-		}
+		Mode->SelectActiveTool(DefaultTool);
 	}
 }
 
