@@ -603,7 +603,7 @@ void URoadTool_MarkingCurve::DeleteSelectedMarking()
 	RequestRebuild();
 }
 
-void URoadTool_MarkingCurve::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_MarkingCurve::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	const FRay& Ray = ClickPos.WorldRay;
 	ARoadActor* Road = GetSelectedRoad();
@@ -615,13 +615,14 @@ void URoadTool_MarkingCurve::OnRoadClicked(const FInputDeviceRay& ClickPos, bool
 		if (!bRightButton)
 		{
 			SelectRoadUnderRay(Ray);
+			return true;
 		}
-		return;
+		return false;
 	}
 
 	if (Road->Length() <= 0.0)
 	{
-		return;
+		return false;
 	}
 
 	UMarkingCurve* HitMarking = nullptr;
@@ -633,11 +634,12 @@ void URoadTool_MarkingCurve::OnRoadClicked(const FInputDeviceRay& ClickPos, bool
 	{
 		// A miss clears the selection, which is how the legacy tool emptied its panel.
 		SelectMarking(HitMarking, HitPointIndex, HitHandleIndex);
-		return;
+		return true;
 	}
 
 	// A right click means different things depending on whether the selected endpoint is being extended,
-	// which is the branch the legacy tool took too.
+	// which is the branch the legacy tool took too. Every branch past this point acts - close, reselect,
+	// insert or create - so a right click with a road selected is always consumed.
 	UMarkingCurve* Marking = GetCurrentMarking();
 	if (Marking != nullptr && Marking->IsEndPoint(PointIndex))
 	{
@@ -657,16 +659,17 @@ void URoadTool_MarkingCurve::OnRoadClicked(const FInputDeviceRay& ClickPos, bool
 		{
 			InsertPointAt(Road, Ray);
 		}
-		return;
+		return true;
 	}
 
 	if (HitMarking != nullptr)
 	{
 		SelectMarking(HitMarking, HitPointIndex, HitHandleIndex);
-		return;
+		return true;
 	}
 
 	AddMarkingCurveAt(Road, Ray);
+	return true;
 }
 
 void URoadTool_MarkingCurve::SelectParent()

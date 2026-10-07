@@ -467,7 +467,7 @@ void URoadTool_GroundEdit::InsertManualPointAt(AGroundActor* Ground, const FRay&
 	RequestRebuild();
 }
 
-void URoadTool_GroundEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_GroundEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	const FRay& Ray = ClickPos.WorldRay;
 	AGroundActor* Ground = GetCurrentGround();
@@ -479,19 +479,21 @@ void URoadTool_GroundEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool b
 	if (!bRightButton)
 	{
 		// A left click that hits nothing deliberately leaves the selection alone, which is what the legacy
-		// tool did here - unlike the marking tools, which cleared theirs.
+		// tool did here - unlike the marking tools, which cleared theirs. And because it does nothing, it
+		// is not consumed either.
 		if (HitGround != nullptr)
 		{
 			SelectPoint(HitGround, HitIndex);
+			return true;
 		}
-		return;
+		return false;
 	}
 
 	// A right click only means something when the click started from an endpoint of the selected outline;
 	// there is no other point to extend from.
 	if (Ground == nullptr || !Ground->IsEndPoint(GetPointIndex()))
 	{
-		return;
+		return false;
 	}
 
 	if (HitGround != nullptr)
@@ -502,6 +504,7 @@ void URoadTool_GroundEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool b
 			if (HitGround->IsEndPoint(HitIndex))
 			{
 				JoinGroundAt(Ground, HitGround);
+				return true;
 			}
 		}
 		else if (HitIndex != PointIndex)
@@ -510,12 +513,15 @@ void URoadTool_GroundEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool b
 			if (HitGround->IsEndPoint(HitIndex))
 			{
 				CloseCurrentGround(Ground);
+				return true;
 			}
 		}
-		return;
+		// A hit that joined or closed nothing was aimed at a ground but matched no gesture.
+		return false;
 	}
 
 	InsertManualPointAt(Ground, Ray);
+	return true;
 }
 
 void URoadTool_GroundEdit::SelectParent()

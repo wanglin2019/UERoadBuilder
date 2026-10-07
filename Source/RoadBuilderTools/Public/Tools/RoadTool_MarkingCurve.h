@@ -125,7 +125,7 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
-	virtual void OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton) override;
+	virtual bool OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton) override;
 
 	/** Escape: drop the marking selection, then let the base step the road selection up a level. */
 	virtual void SelectParent() override;

@@ -14,8 +14,10 @@
  * so inserting a tool silently shifted every tool at 14 call sites. Here the identity is written down
  * once and referenced by the tool class, the command registration and the host.
  *
- * S1 note: when the legacy ERoadToolType enum is retired, its entries move into this header and each
- * tool keeps declaring its own identity - the same self-reporting shape as the legacy GetToolType().
+ * This header is now the single identity list for the new tool layer. The legacy ERoadToolType enum is
+ * not being retired - the legacy module stays as the reference implementation - so the two lists are
+ * kept in step by hand: every entry here names a tool that the legacy module also has, and adding a
+ * tool means adding it on both sides.
  */
 namespace RoadToolIds
 {

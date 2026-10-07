@@ -68,8 +68,8 @@ namespace
 	 * Reports the segments of every link curve of one junction, tagged with the gate and link they belong
 	 * to - which is the identity the per-link hit proxies carried, and what a click needs to select one.
 	 *
-	 * A gate's links are the roads continuing through the junction; the second one is drawn as its
-	 * centreline and the others as their right lane, which is the pairing the legacy pass used.
+	 * Which curve a link contributes is the model's own call (FJunctionGate::GetLinkCurve), shared with
+	 * the drawing pass in URoadInteractiveTool::DrawRoads so picking and drawing can never drift apart.
 	 */
 	template <typename FSegment>
 	void ForEachJunctionLink(AJunctionActor* Junction, FSegment&& OnSegment)
@@ -85,15 +85,7 @@ namespace
 			const TArray<FJunctionLink>& Links = Gates[GateIndex].Links;
 			for (int32 LinkIndex = 0; LinkIndex < Links.Num(); ++LinkIndex)
 			{
-				ARoadActor* Road = Links[LinkIndex].Road;
-				if (Road == nullptr || Road->BaseCurve == nullptr)
-				{
-					continue;
-				}
-
-				URoadCurve* Curve = (LinkIndex == 1)
-					? static_cast<URoadCurve*>(Road->BaseCurve)
-					: static_cast<URoadCurve*>(Road->BaseCurve->RightLane);
+				URoadCurve* Curve = Gates[GateIndex].GetLinkCurve(LinkIndex);
 				if (Curve == nullptr)
 				{
 					continue;
@@ -274,11 +266,13 @@ void URoadTool_JunctionLink::PickUnderRay(const FRay& Ray, AJunctionActor*& OutJ
 	}
 }
 
-void URoadTool_JunctionLink::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_JunctionLink::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	if (bRightButton)
 	{
-		return;
+		// No right-button gesture in this tool, so the click stays the editor's - which is what the
+		// context menu needs. See Setup() for why no right-button behaviour is registered either.
+		return false;
 	}
 
 	AJunctionActor* HitJunction = nullptr;
@@ -291,7 +285,9 @@ void URoadTool_JunctionLink::OnRoadClicked(const FInputDeviceRay& ClickPos, bool
 	if (HitJunction != nullptr)
 	{
 		SelectLink(HitJunction, HitGate, HitLink);
+		return true;
 	}
+	return false;
 }
 
 void URoadTool_JunctionLink::SelectParent()

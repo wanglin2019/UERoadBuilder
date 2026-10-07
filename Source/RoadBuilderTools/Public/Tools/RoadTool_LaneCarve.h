@@ -48,11 +48,15 @@ class ROADBUILDERTOOLS_API URoadTool_LaneCarve : public URoadInteractiveTool
 public:
 	virtual void Setup() override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-	virtual void OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton) override;
+	virtual bool OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton) override;
 
 private:
-	/** Arms the carve at the boundary under the cursor, or performs it when one is already armed. */
-	void CarveAtRay(const FRay& Ray);
+	/**
+	 * Arms the carve at the boundary under the cursor, or performs it when one is already armed.
+	 * Returns whether the click was this tool's business at all (a road selected, a boundary under the
+	 * cursor and real ground beneath it) - the same condition the legacy HRoadCurveProxy hit expressed.
+	 */
+	bool CarveAtRay(const FRay& Ray);
 
 	/** Performs the carve from the armed StartUV to EndUV. Returns whether anything changed. */
 	bool ApplyCarve(ARoadActor* Road, const FVector2D& EndUV);

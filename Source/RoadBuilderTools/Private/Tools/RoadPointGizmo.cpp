@@ -21,6 +21,7 @@
 #include "RoadLog.h"
 #include "SceneManagement.h"
 #include "Tools/RoadInteractiveTool.h"
+#include "Tools/RoadPicking.h"
 #include "ToolContextInterfaces.h"
 
 void URoadPointGizmo::Initialize(UInteractiveTool* InOwningTool, ETransformGizmoSubElements InElements,
@@ -348,12 +349,14 @@ FRoadGizmoHit URoadPointGizmo::HitTestHandle(const FRay& Ray, double InPixelToWo
 	// and the first arrow, so the centre stays grabbable by nothing but the plane.
 	static constexpr double HandlePixelTolerance = 10.0;
 
-	// Where the ray comes nearest to each handle, and how far that is in pixels.
+	// Where the ray comes nearest to each handle, and how far that is in pixels. The ray is walked at the
+	// tool layer's shared length rather than a local figure, so picking, tracing and this test can never
+	// quietly disagree about how far "along the ray" reaches.
 	auto PixelDistanceToSegment = [&Ray, PixelToWorld](const FVector& Start, const FVector& End) -> double
 	{
 		FVector RayPoint;
 		FVector SegmentPoint;
-		FMath::SegmentDistToSegmentSafe(Ray.Origin, Ray.Origin + Ray.Direction * 1000000.0,
+		FMath::SegmentDistToSegmentSafe(Ray.Origin, Ray.Origin + Ray.Direction * RoadPicking::RayLength,
 			Start, End, RayPoint, SegmentPoint);
 		return FVector::Dist(RayPoint, SegmentPoint) / FMath::Max(PixelToWorld, SMALL_NUMBER);
 	};
@@ -562,73 +565,6 @@ void URoadPointGizmo::NotifyDragEnded()
 	{
 		OnDragEnded();
 	}
-}
-
-bool URoadPointGizmo::GetGizmoActorDiagnostics(bool& bOutEditorHidden, bool& bOutRecentlyRendered) const
-{
-	bOutEditorHidden = true;
-	bOutRecentlyRendered = false;
-
-	if (TransformGizmo == nullptr)
-	{
-		return false;
-	}
-	const AActor* GizmoActor = TransformGizmo->GetGizmoActor();
-	if (GizmoActor == nullptr)
-	{
-		return false;
-	}
-
-	bOutEditorHidden = GizmoActor->IsTemporarilyHiddenInEditor() || GizmoActor->IsHidden();
-	bOutRecentlyRendered = GizmoActor->WasRecentlyRendered(1.0f);
-	return true;
-}
-
-int32 URoadPointGizmo::GetGizmoHandleMask() const
-{
-	if (TransformGizmo == nullptr)
-	{
-		return 0;
-	}
-	const ACombinedTransformGizmoActor* GizmoActor = TransformGizmo->GetGizmoActor();
-	if (GizmoActor == nullptr)
-	{
-		return 0;
-	}
-
-	int32 Mask = 0;
-	Mask |= (GizmoActor->TranslateX != nullptr) ? (1 << 0) : 0;
-	Mask |= (GizmoActor->TranslateY != nullptr) ? (1 << 1) : 0;
-	Mask |= (GizmoActor->TranslateXY != nullptr) ? (1 << 2) : 0;
-	return Mask;
-}
-
-FString URoadPointGizmo::GetGizmoWorldDiagnostics() const
-{
-	if (TransformGizmo == nullptr)
-	{
-		return TEXT("no-gizmo");
-	}
-	const ACombinedTransformGizmoActor* GizmoActor = TransformGizmo->GetGizmoActor();
-	if (GizmoActor == nullptr)
-	{
-		return TEXT("no-actor");
-	}
-
-	const UWorld* ActorWorld = GizmoActor->GetWorld();
-	const UPrimitiveComponent* Plane = Cast<UPrimitiveComponent>(GizmoActor->TranslateXY);
-
-	// Scene proxy presence is what decides whether the renderer can ever draw the component: a
-	// registered component that is still missing its proxy has not reached FScene at all.
-	const bool bHasProxy = (Plane != nullptr) && (Plane->SceneProxy != nullptr);
-	const bool bPlaneVisible = (Plane != nullptr) && Plane->IsVisible();
-
-	return FString::Printf(TEXT("world=%s actorType=%s proxy=%d visible=%d gameWorld=%d"),
-		ActorWorld != nullptr ? *ActorWorld->GetName() : TEXT("null"),
-		*GizmoActor->GetClass()->GetName(),
-		bHasProxy ? 1 : 0,
-		bPlaneVisible ? 1 : 0,
-		(ActorWorld != nullptr && ActorWorld->IsGameWorld()) ? 1 : 0);
 }
 
 void URoadPointGizmo::OnBeginTransformEdit(UTransformProxy* Proxy)

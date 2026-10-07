@@ -333,7 +333,7 @@ void URoadTool_LaneEdit::OnPropertyModified(UObject* PropertySet, FProperty* Pro
 	ApplyPropertiesToSegment(Property);
 }
 
-void URoadTool_LaneEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_LaneEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	const FRay& Ray = ClickPos.WorldRay;
 	ARoadActor* Road = GetSelectedRoad();
@@ -345,13 +345,14 @@ void URoadTool_LaneEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 		if (!bRightButton)
 		{
 			SelectRoadUnderRay(Ray);
+			return true;
 		}
-		return;
+		return false;
 	}
 
 	if (Road->Length() <= 0.0)
 	{
-		return;
+		return false;
 	}
 
 	// A road is selected, so the cursor's station and offset on it are what identify the target.
@@ -360,7 +361,7 @@ void URoadTool_LaneEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 	{
 		// The legacy tool projected this sentinel and landed at an arbitrary station; dropping the click is
 		// the only defensible reading of a trace that hit nothing.
-		return;
+		return false;
 	}
 	const FVector2D UV = Road->GetUV(Position);
 
@@ -369,13 +370,13 @@ void URoadTool_LaneEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 		URoadLane* Lane = Road->GetLane(UV);
 		const int32 Index = (Lane != nullptr && Lane->Segments.Num() > 0) ? Lane->GetSegment(UV.X) : INDEX_NONE;
 		SelectSegment(Lane, Index);
-		return;
+		return true;
 	}
 
 	URoadLane* SelectedLane = GetCurrentLane();
 	if (SelectedLane == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	// A right click on one of the current lane's two boundaries copies the lane across it. Only those two
@@ -388,7 +389,7 @@ void URoadTool_LaneEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 	if (RoadPicking::PickBoundary(Boundaries, Ray, BoundaryIndex) != nullptr)
 	{
 		CopyLaneAcrossBoundary(Road, /*bLeftBoundary*/ BoundaryIndex == 0);
-		return;
+		return true;
 	}
 
 	// Otherwise it acts on the lane itself: the same lane gets a new segment at the cursor, a different
@@ -396,17 +397,18 @@ void URoadTool_LaneEdit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 	URoadLane* Lane = Road->GetLane(UV);
 	if (Lane == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	if (Lane == SelectedLane)
 	{
 		AddSegmentAt(Road, UV.X);
-		return;
+		return true;
 	}
 
 	const int32 Index = (Lane->Segments.Num() > 0) ? Lane->GetSegment(UV.X) : INDEX_NONE;
 	SelectSegment(Lane, Index);
+	return true;
 }
 
 void URoadTool_LaneEdit::SelectParent()

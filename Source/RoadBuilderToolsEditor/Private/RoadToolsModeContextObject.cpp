@@ -4,7 +4,6 @@
 #include "RoadToolsModeContextObject.h"
 
 #include "Editor.h"
-#include "Engine/Selection.h"
 #include "Kismet/GameplayStatics.h"
 #include "RoadActor.h"
 #include "RoadScene.h"
@@ -39,106 +38,46 @@ ARoadScene* URoadToolsModeContextObject::GetRoadScene() const
 
 ARoadActor* URoadToolsModeContextObject::GetSelectedRoad() const
 {
-	if (GEditor == nullptr)
-	{
-		return nullptr;
-	}
-
-	// S0 reads the level editor's actor selection. S1 moves the notion of "the road being edited" onto
-	// the mode itself, mirroring what the legacy FEdModeRoad did with its own SelectedRoad member -
-	// the tools then drive that instead of the editor selection.
-	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
-	{
-		if (ARoadActor* Road = Cast<ARoadActor>(*It))
-		{
-			return Road;
-		}
-	}
-
-	return nullptr;
+	// The selection is the mode's own, mirroring what the legacy FEdModeRoad did with its SelectedRoad
+	// member: the tools drive it, and the level editor's actor selection is not consulted - a click in
+	// the outliner must not silently change what a tool is editing.
+	URoadToolsMode* RoadToolsMode = OwnerMode.Get();
+	return RoadToolsMode != nullptr ? RoadToolsMode->GetSelectedRoad() : nullptr;
 }
 
 void URoadToolsModeContextObject::SetSelectedRoad(ARoadActor* Road)
 {
-	if (GEditor == nullptr)
+	if (URoadToolsMode* RoadToolsMode = OwnerMode.Get())
 	{
-		return;
-	}
-
-	// Null is a meaningful request ("nothing is selected"): the tool layer clears its own selection when
-	// a click lands on empty space, and the editor's selection has to follow it there.
-	// Skip the notify while clearing so the change is reported once, for the new actor.
-	GEditor->SelectNone(false, true, false);
-	if (Road != nullptr)
-	{
-		GEditor->SelectActor(Road, true, true, true);
+		RoadToolsMode->SetSelectedRoad(Road);
 	}
 }
 
 AGroundActor* URoadToolsModeContextObject::GetSelectedGround() const
 {
-	if (GEditor == nullptr)
-	{
-		return nullptr;
-	}
-
-	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
-	{
-		if (AGroundActor* Ground = Cast<AGroundActor>(*It))
-		{
-			return Ground;
-		}
-	}
-
-	return nullptr;
+	URoadToolsMode* RoadToolsMode = OwnerMode.Get();
+	return RoadToolsMode != nullptr ? RoadToolsMode->GetSelectedGround() : nullptr;
 }
 
 void URoadToolsModeContextObject::SetSelectedGround(AGroundActor* Ground)
 {
-	if (GEditor == nullptr)
+	if (URoadToolsMode* RoadToolsMode = OwnerMode.Get())
 	{
-		return;
-	}
-
-	// Grounds and roads are edited by different tools, never at once, so the shared actor selection can
-	// carry either one. The selection is filtered by type on the way back out, which is what keeps a
-	// ground selection from reading as a road one.
-	GEditor->SelectNone(false, true, false);
-	if (Ground != nullptr)
-	{
-		GEditor->SelectActor(Ground, true, true, true);
+		RoadToolsMode->SetSelectedGround(Ground);
 	}
 }
 
 AJunctionActor* URoadToolsModeContextObject::GetSelectedJunction() const
 {
-	if (GEditor == nullptr)
-	{
-		return nullptr;
-	}
-
-	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
-	{
-		if (AJunctionActor* Junction = Cast<AJunctionActor>(*It))
-		{
-			return Junction;
-		}
-	}
-
-	return nullptr;
+	URoadToolsMode* RoadToolsMode = OwnerMode.Get();
+	return RoadToolsMode != nullptr ? RoadToolsMode->GetSelectedJunction() : nullptr;
 }
 
 void URoadToolsModeContextObject::SetSelectedJunction(AJunctionActor* Junction)
 {
-	if (GEditor == nullptr)
+	if (URoadToolsMode* RoadToolsMode = OwnerMode.Get())
 	{
-		return;
-	}
-
-	GEditor->SelectNone(false, true, false);
-	if (Junction != nullptr)
-	{
-		GEditor->SelectActor(Junction, true, true, true);
+		RoadToolsMode->SetSelectedJunction(Junction);
 	}
 }
 

@@ -360,7 +360,7 @@ void URoadTool_MarkingLane::PickUnderRay(const FRay& Ray, URoadBoundary*& OutBou
 	}
 }
 
-void URoadTool_MarkingLane::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_MarkingLane::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	const FRay& Ray = ClickPos.WorldRay;
 	ARoadActor* Road = GetSelectedRoad();
@@ -372,13 +372,14 @@ void URoadTool_MarkingLane::OnRoadClicked(const FInputDeviceRay& ClickPos, bool 
 		if (!bRightButton)
 		{
 			SelectRoadUnderRay(Ray);
+			return true;
 		}
-		return;
+		return false;
 	}
 
 	if (Road->Length() <= 0.0)
 	{
-		return;
+		return false;
 	}
 
 	URoadBoundary* Boundary = nullptr;
@@ -389,12 +390,12 @@ void URoadTool_MarkingLane::OnRoadClicked(const FInputDeviceRay& ClickPos, bool 
 	{
 		// A miss clears the selection, which is how the legacy tool emptied its panel.
 		SelectSegment(Boundary, Index);
-		return;
+		return true;
 	}
 
 	if (Boundary == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	// A right click splits a boundary with a new segment where the cursor meets the road, so the station
@@ -402,10 +403,11 @@ void URoadTool_MarkingLane::OnRoadClicked(const FInputDeviceRay& ClickPos, bool 
 	const FVector Position = LineTrace(Ray);
 	if (Position.X >= WORLD_MAX)
 	{
-		return;
+		return false;
 	}
 
 	AddSegmentAt(Boundary, Road->GetUV(Position).X);
+	return true;
 }
 
 void URoadTool_MarkingLane::SelectParent()

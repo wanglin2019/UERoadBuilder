@@ -175,11 +175,22 @@ public:
 	 * Called for a click that reached the host instead of one of this tool's input behaviours.
 	 *
 	 * The right button only ever arrives this way, which is what keeps right-drag free for the camera.
+	 * Returns whatever OnRoadClicked() decided, so a click the tool did not use falls back through to
+	 * the editor - which is what keeps the viewport's right-click context menu alive while a tool is
+	 * active, the same "declined clicks are not claimed" contract the legacy tools had by returning
+	 * false from HandleClick().
 	 */
 	virtual bool HandleViewportClick(const FRay& WorldRay, bool bRightButton);
 
-	/** Click landed on a bound button. bRightButton tells the two buttons apart. */
-	virtual void OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton);
+	/**
+	 * Click landed on a bound button. bRightButton tells the two buttons apart.
+	 *
+	 * Returns true when the click was consumed - the tool acted on it, or deliberately treated it as a
+	 * selection gesture. The left-button path ignores the result (its behaviour already claimed the
+	 * press at hit-test time); the right-button path reports it to the host, so a right click the tool
+	 * has no use for must return false or the editor never gets its context menu back.
+	 */
+	virtual bool OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton);
 
 	/**
 	 * Whether the left-button behaviour wants the click at all. Defaults to accepting anywhere, because ITF

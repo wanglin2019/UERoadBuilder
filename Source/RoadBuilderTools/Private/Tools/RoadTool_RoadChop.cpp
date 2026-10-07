@@ -34,7 +34,7 @@ void URoadTool_RoadChop::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
-void URoadTool_RoadChop::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_RoadChop::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	const FRay& Ray = ClickPos.WorldRay;
 
@@ -42,21 +42,22 @@ void URoadTool_RoadChop::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 	{
 		// Left click selects the road under the cursor, which is all the legacy HandleClickRoad() did.
 		SelectRoadUnderRay(Ray);
-		return;
+		return true;
 	}
 
 	// Right click acts, and needs both a selected road to act on and a road under the cursor to act with.
-	// Nothing picked means nothing happens, rather than a selection change - the legacy tool did the same.
+	// Nothing picked means nothing happens, rather than a selection change - the legacy tool did the same,
+	// and a click that changes nothing is not consumed.
 	ARoadActor* SelectedRoad = GetSelectedRoad();
 	if (SelectedRoad == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	ARoadActor* CursorRoad = RoadPicking::PickRoad(GetRoadScene(), Ray);
 	if (CursorRoad == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	// The chop position is the cursor projected onto the road, so it needs a real world hit. A miss leaves
@@ -64,7 +65,7 @@ void URoadTool_RoadChop::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 	const FVector Position = LineTrace(Ray);
 	if (Position.X >= WORLD_MAX)
 	{
-		return;
+		return false;
 	}
 	const double Dist = SelectedRoad->GetUV(Position).X;
 
@@ -84,6 +85,7 @@ void URoadTool_RoadChop::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 	}
 
 	RequestRebuild();
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

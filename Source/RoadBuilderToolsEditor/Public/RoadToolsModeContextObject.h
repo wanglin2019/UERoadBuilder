@@ -43,6 +43,6 @@ public:
 	virtual void NotifyActiveToolChanged(FName ToolId, bool bActive) override;
 
 private:
-	/** The mode that owns this object; it supplies the world. */
+	/** The mode that owns this object; it supplies the world and holds the editing selection. */
 	TWeakObjectPtr<URoadToolsMode> OwnerMode;
 };

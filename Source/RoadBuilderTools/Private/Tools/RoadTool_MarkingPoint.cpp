@@ -323,7 +323,7 @@ UMarkingPoint* URoadTool_MarkingPoint::PickMarkingUnderRay(const FRay& Ray) cons
 	return Hit.bHit ? Cast<UMarkingPoint>(Hit.Owner) : nullptr;
 }
 
-void URoadTool_MarkingPoint::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_MarkingPoint::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	const FRay& Ray = ClickPos.WorldRay;
 	ARoadActor* Road = GetSelectedRoad();
@@ -335,20 +335,21 @@ void URoadTool_MarkingPoint::OnRoadClicked(const FInputDeviceRay& ClickPos, bool
 		if (!bRightButton)
 		{
 			SelectRoadUnderRay(Ray);
+			return true;
 		}
-		return;
+		return false;
 	}
 
 	if (Road->Length() <= 0.0)
 	{
-		return;
+		return false;
 	}
 
 	if (!bRightButton)
 	{
 		// A miss clears the selection, which is how the legacy tool emptied its panel.
 		SelectMarking(PickMarkingUnderRay(Ray));
-		return;
+		return true;
 	}
 
 	// A right click drops a new marking where the cursor meets the road, so the position has to come from a
@@ -356,10 +357,11 @@ void URoadTool_MarkingPoint::OnRoadClicked(const FInputDeviceRay& ClickPos, bool
 	const FVector Position = LineTrace(Ray);
 	if (Position.X >= WORLD_MAX)
 	{
-		return;
+		return false;
 	}
 
 	AddMarkingPointAt(Road, Road->GetUV(Position));
+	return true;
 }
 
 void URoadTool_MarkingPoint::SelectParent()

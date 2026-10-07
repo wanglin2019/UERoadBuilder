@@ -191,15 +191,17 @@ void URoadToolsMode::Enter()
 
 void URoadToolsMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	// Info: the moment a tool becomes the active one, which is the other half of the lifecycle pair below.
-	RoadLog_Info(TEXT("tool started %s"),
+	// Debug: the moment a tool becomes the active one. A tool switch is routine, so this stays below the
+	// default verbosity; it exists to tell "the switch request never arrived" apart from "the tool
+	// started but misbehaved" when a palette is being diagnosed.
+	RoadLog_Debug(TEXT("tool started %s"),
 		Tool != nullptr ? *Tool->GetClass()->GetName() : TEXT("null"));
 }
 
 void URoadToolsMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	// Info: pairs with the started line above.
-	RoadLog_Info(TEXT("tool ended %s"),
+	// Debug: pairs with the started line above.
+	RoadLog_Debug(TEXT("tool ended %s"),
 		Tool != nullptr ? *Tool->GetClass()->GetName() : TEXT("null"));
 }
 
@@ -207,6 +209,13 @@ void URoadToolsMode::Exit()
 {
 	// Info: pairs with the Enter() lines, so a mode that was re-entered is visible in the log.
 	RoadLog_Info(TEXT("Exit"));
+
+	// The editing selection belongs to the session, so it goes with the mode. The weak pointers would
+	// survive a stale read, but a fresh Enter() should start from a clean slate, not from whatever a
+	// previous session had picked.
+	SelectedRoad.Reset();
+	SelectedGround.Reset();
+	SelectedJunction.Reset();
 
 	// Release the capability object before the base tears the tools contexts down.
 	if (UInteractiveToolManager* ToolManager = GetToolManager())

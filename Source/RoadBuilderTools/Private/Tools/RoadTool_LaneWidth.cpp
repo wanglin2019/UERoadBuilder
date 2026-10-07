@@ -358,7 +358,7 @@ void URoadTool_LaneWidth::PickUnderRay(const FRay& Ray, URoadBoundary*& OutBound
 	}
 }
 
-void URoadTool_LaneWidth::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_LaneWidth::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	const FRay& Ray = ClickPos.WorldRay;
 	ARoadActor* Road = GetSelectedRoad();
@@ -370,13 +370,14 @@ void URoadTool_LaneWidth::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bR
 		if (!bRightButton)
 		{
 			SelectRoadUnderRay(Ray);
+			return true;
 		}
-		return;
+		return false;
 	}
 
 	if (Road->Length() <= 0.0)
 	{
-		return;
+		return false;
 	}
 
 	URoadBoundary* Boundary = nullptr;
@@ -387,12 +388,12 @@ void URoadTool_LaneWidth::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bR
 	{
 		// A miss clears the selection, which is how the legacy tool emptied its panel.
 		SelectOffset(Boundary, Index);
-		return;
+		return true;
 	}
 
 	if (Boundary == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	// A right click on a boundary adds a control point where the cursor meets the road, so the station has
@@ -400,10 +401,11 @@ void URoadTool_LaneWidth::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bR
 	const FVector Position = LineTrace(Ray);
 	if (Position.X >= WORLD_MAX)
 	{
-		return;
+		return false;
 	}
 
 	AddControlPoint(Boundary, Road->GetUV(Position).X);
+	return true;
 }
 
 void URoadTool_LaneWidth::SelectParent()

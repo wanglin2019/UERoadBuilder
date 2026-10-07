@@ -60,26 +60,26 @@ void URoadTool_RoadSplit::Render(IToolsContextRenderAPI* RenderAPI)
 	DrawRoads(PDI);
 }
 
-void URoadTool_RoadSplit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_RoadSplit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	const FRay& Ray = ClickPos.WorldRay;
 
 	if (!bRightButton)
 	{
 		SelectRoadUnderRay(Ray);
-		return;
+		return true;
 	}
 
 	ARoadActor* SelectedRoad = GetSelectedRoad();
 	if (SelectedRoad == nullptr || SelectedRoad->Length() <= 0.0)
 	{
-		return;
+		return false;
 	}
 
 	URoadBoundary* Boundary = RoadPicking::PickBoundary(SelectedRoad, Ray);
 	if (Boundary == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	// Split() spawns a new road actor, so the edit is bracketed by a host transaction - the same reason
@@ -90,6 +90,7 @@ void URoadTool_RoadSplit::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bR
 	}
 
 	RequestRebuild();
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

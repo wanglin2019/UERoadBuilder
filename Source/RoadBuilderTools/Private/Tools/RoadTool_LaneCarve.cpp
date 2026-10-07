@@ -6,6 +6,7 @@
 #include "RoadActor.h"
 #include "RoadBoundary.h"
 #include "RoadLane.h"
+#include "RoadLog.h"
 #include "SceneManagement.h"
 #include "Tools/RoadPicking.h"
 
@@ -80,7 +81,7 @@ void URoadTool_LaneCarve::Render(IToolsContextRenderAPI* RenderAPI)
 		RoadToolStyle::Thickness_Line, 0.0f, true);
 }
 
-void URoadTool_LaneCarve::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_LaneCarve::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	const FRay& Ray = ClickPos.WorldRay;
 
@@ -89,24 +90,24 @@ void URoadTool_LaneCarve::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bR
 		// A left click only selects; it deliberately does not disarm an armed carve, because the legacy
 		// tool did not either - so the user can look at another road and come back.
 		SelectRoadUnderRay(Ray);
-		return;
+		return true;
 	}
 
-	CarveAtRay(Ray);
+	return CarveAtRay(Ray);
 }
 
-void URoadTool_LaneCarve::CarveAtRay(const FRay& Ray)
+bool URoadTool_LaneCarve::CarveAtRay(const FRay& Ray)
 {
 	ARoadActor* Road = GetSelectedRoad();
 	if (Road == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	URoadBoundary* Boundary = RoadPicking::PickBoundary(Road, Ray);
 	if (Boundary == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	// Station comes from the world hit, the lateral offset from the boundary that was hit - which is what
@@ -116,7 +117,7 @@ void URoadTool_LaneCarve::CarveAtRay(const FRay& Ray)
 	{
 		// The legacy tool projected the sentinel, carving at an arbitrary station. Dropping the click is
 		// the only defensible reading of a trace that hit nothing.
-		return;
+		return false;
 	}
 
 	FVector2D EndUV = Road->GetUV(Position);
@@ -126,14 +127,16 @@ void URoadTool_LaneCarve::CarveAtRay(const FRay& Ray)
 	{
 		StartUV = EndUV;
 		RequestRedraw();
-		return;
+		return true;
 	}
 
 	ApplyCarve(Road, EndUV);
 
 	// Disarm either way: a failed carve has to leave a clean slate too, or the next click would pair with
-	// a stale start.
+	// a stale start. The click was aimed at a boundary either way, so it stays consumed even when the
+	// carve itself found nothing to change.
 	ResetCarve();
+	return true;
 }
 
 bool URoadTool_LaneCarve::ApplyCarve(ARoadActor* Road, const FVector2D& EndUV)
@@ -186,6 +189,20 @@ bool URoadTool_LaneCarve::ApplyCarve(ARoadActor* Road, const FVector2D& EndUV)
 	const int32 LaneSide = Lane->GetSide();
 	const double LaneWidth = Lane->GetWidth((StartStation + EndStation) / 2);
 
+	// The offset writes below index one past and one before the freshly inserted points. Those indexes
+	// are safe by construction as long as the boundary carries at least two offsets: GetPointIndex()
+	// clamps its answer to [0, Num-2], so AddLocalOffset() inserts at [1, Num-1] and the neighbours the
+	// code touches always exist. A boundary with fewer than two offsets breaks that contract (and would
+	// fault inside AddLocalOffset itself), so it is rejected up front rather than traced through.
+	URoadBoundary* SourceBoundary = Lane->GetBoundary(LaneSide);
+	if (SourceBoundary == nullptr || SourceBoundary->LocalOffsets.Num() < 2)
+	{
+		RoadLog_Warn(TEXT("LaneCarve rejected: %s boundary has %d offsets, needs 2"),
+			*Lane->GetName(),
+			SourceBoundary != nullptr ? SourceBoundary->LocalOffsets.Num() : -1);
+		return false;
+	}
+
 	// CopyLane() creates a lane object, so the edit is bracketed by a host transaction. The Modify() calls
 	// are kept: they are what records the lane and boundary sub-objects, not just the road, with the
 	// host's undo stack.
@@ -195,9 +212,13 @@ bool URoadTool_LaneCarve::ApplyCarve(ARoadActor* Road, const FVector2D& EndUV)
 	URoadLane* ForkLane = nullptr;
 	if (URoadLane* SideLane = Lane->GetBoundary(Side)->GetLane(Side))
 	{
-		// A neighbour lane already zero-width at both ends is the fork that would be created anyway.
+		// A neighbour lane already zero-width at both ends is the fork that would be created anyway. It is
+		// only reused when its boundary satisfies the same offset contract as the source - otherwise the
+		// carve forks a fresh copy, which inherits the source's (already validated) offsets instead.
+		URoadBoundary* SideBoundary = SideLane->GetBoundary(LaneSide);
 		if (FMath::IsNearlyZero(SideLane->GetWidth(StartStation))
-			&& FMath::IsNearlyZero(SideLane->GetWidth(EndStation)))
+			&& FMath::IsNearlyZero(SideLane->GetWidth(EndStation))
+			&& SideBoundary != nullptr && SideBoundary->LocalOffsets.Num() >= 2)
 		{
 			ForkLane = SideLane;
 		}
@@ -207,33 +228,39 @@ bool URoadTool_LaneCarve::ApplyCarve(ARoadActor* Road, const FVector2D& EndUV)
 		ForkLane = Road->CopyLane(Lane, Side);
 	}
 
+	URoadBoundary* ForkBoundary = (ForkLane != nullptr) ? ForkLane->GetBoundary(LaneSide) : nullptr;
+	if (ForkBoundary == nullptr)
+	{
+		RoadLog_Warn(TEXT("LaneCarve rejected: %s has no boundary on side %d"),
+			(ForkLane != nullptr) ? *ForkLane->GetName() : TEXT("null"), LaneSide);
+		return false;
+	}
+
 	// The source lane keeps its width and only opens at the far end...
 	{
 		Lane->Modify();
-		URoadBoundary* Boundary = Lane->GetBoundary(LaneSide);
-		Boundary->Modify();
+		SourceBoundary->Modify();
 		// The start-side index is unused at this end - only the insert as a side effect matters.
-		Boundary->AddLocalOffset(StartStation);
-		const int32 NextIndex = Boundary->AddLocalOffset(EndStation);
-		Boundary->LocalOffsets[NextIndex].Offset = 0.0;
-		Boundary->LocalOffsets[NextIndex + 1].Offset = 0.0;
-		Boundary->AddSegment(StartStation);
-		Boundary->AddSegment(EndStation);
+		SourceBoundary->AddLocalOffset(StartStation);
+		const int32 NextIndex = SourceBoundary->AddLocalOffset(EndStation);
+		SourceBoundary->LocalOffsets[NextIndex].Offset = 0.0;
+		SourceBoundary->LocalOffsets[NextIndex + 1].Offset = 0.0;
+		SourceBoundary->AddSegment(StartStation);
+		SourceBoundary->AddSegment(EndStation);
 	}
 
 	// ...and the fork lane does the opposite: zero width at first, full width at the far end.
 	{
 		ForkLane->Modify();
-		URoadBoundary* Boundary = ForkLane->GetBoundary(LaneSide);
-		Boundary->Modify();
-		const int32 PrevIndex = Boundary->AddLocalOffset(StartStation);
-		const int32 NextIndex = Boundary->AddLocalOffset(EndStation);
-		Boundary->LocalOffsets[PrevIndex - 1].Offset = 0.0;
-		Boundary->LocalOffsets[PrevIndex].Offset = 0.0;
-		Boundary->LocalOffsets[NextIndex].Offset = LaneWidth;
-		Boundary->LocalOffsets[NextIndex + 1].Offset = LaneWidth;
-		Boundary->AddSegment(StartStation);
-		Boundary->AddSegment(EndStation);
+		ForkBoundary->Modify();
+		const int32 PrevIndex = ForkBoundary->AddLocalOffset(StartStation);
+		const int32 NextIndex = ForkBoundary->AddLocalOffset(EndStation);
+		ForkBoundary->LocalOffsets[PrevIndex - 1].Offset = 0.0;
+		ForkBoundary->LocalOffsets[PrevIndex].Offset = 0.0;
+		ForkBoundary->LocalOffsets[NextIndex].Offset = LaneWidth;
+		ForkBoundary->LocalOffsets[NextIndex + 1].Offset = LaneWidth;
+		ForkBoundary->AddSegment(StartStation);
+		ForkBoundary->AddSegment(EndStation);
 	}
 
 	Road->UpdateLanes();

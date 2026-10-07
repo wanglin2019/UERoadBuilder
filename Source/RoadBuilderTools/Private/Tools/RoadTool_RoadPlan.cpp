@@ -534,7 +534,7 @@ void URoadTool_RoadPlan::DeleteSelection()
 	RequestRebuild();
 }
 
-void URoadTool_RoadPlan::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_RoadPlan::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	const FRay& Ray = ClickPos.WorldRay;
 
@@ -572,19 +572,20 @@ void URoadTool_RoadPlan::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 			RoadLog_Debug(TEXT("branch=reset"));
 			ResetSelection();
 		}
-		return;
+		return true;
 	}
 
 	const FVector Position = GetPlanPosition(Ray);
 
 	// A right click on a road splits its alignment there; on empty space it extends the road being worked
-	// on, or starts a new one when there is none.
+	// on, or starts a new one when there is none. Every right click means one of the three, so the button
+	// is always consumed in this tool.
 	if (HitRoad != nullptr)
 	{
 		RoadLog_Debug(TEXT("branch=split pos=(%.0f,%.0f,%.0f)"),
 			Position.X, Position.Y, Position.Z);
 		SplitRoadAt(HitRoad, Position);
-		return;
+		return true;
 	}
 
 	if (SelectedRoad == nullptr)
@@ -592,21 +593,30 @@ void URoadTool_RoadPlan::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRi
 		RoadLog_Debug(TEXT("branch=create pos=(%.0f,%.0f,%.0f)"),
 			Position.X, Position.Y, Position.Z);
 		CreateRoadAt(Position);
-		return;
+		return true;
 	}
 
 	RoadLog_Debug(TEXT("branch=insert pos=(%.0f,%.0f,%.0f) points=%d"),
 		Position.X, Position.Y, Position.Z, SelectedRoad->RoadPoints.Num());
 	InsertPointAt(SelectedRoad, Position);
+	return true;
 }
 
 void URoadTool_RoadPlan::SelectParent()
 {
 	// The tool owns two levels of its own (road, then point), so the point goes first and the base then
-	// steps the road up to its owning junction. ResetSelection() clears the point without touching the
-	// road selection, which is what keeps the two steps independent.
-	ResetSelection();
+	// steps the road up to its owning junction - the same one-press shape the sibling tools
+	// (RoadHeight, LaneEdit, ...) use. Only the point is cleared here: ResetSelection() would take the
+	// road with it, and the base would then have nothing left to step up, which is how the junction
+	// level used to get skipped.
+	PointIndex = INDEX_NONE;
+	SyncProperties();
+	Gizmo->Update(false);
 	Super::SelectParent();
+
+	// The base only asks for a redraw when it moved the road or junction selection; a press that merely
+	// dropped the point still has a gizmo to hide.
+	RequestRedraw();
 }
 
 FArrayProperty* URoadTool_RoadPlan::GetRoadPointsProperty()
@@ -691,42 +701,6 @@ void URoadTool_RoadPlan::OnRoadDragEnded()
 		}
 		DragChange.Reset();
 	}
-}
-
-void URoadTool_RoadPlan::OnTick(float DeltaTime)
-{
-	UInteractiveTool::OnTick(DeltaTime);
-
-	// The per-frame half of the gizmo investigation. Every other probe fires on click or on Update(), so
-	// they can only describe the moment the selection changed; what they could not answer is whether the
-	// gizmo actor survives the renderer at all once the frame is drawn. This reads the two facts they
-	// never did:
-	//
-	//   editorHidden=1 -> the actor carries AActor::bIsTemporarilyHiddenInEditor, which is a second,
-	//                     editor-only visibility flag that IsHidden() does NOT report. SetVisibility(true)
-	//                     clears it, so a 1 here means something hid the actor again after the fact.
-	//   rendered=0     -> WasRecentlyRendered() says no view drew the actor in the last second, which
-	//                     separates "the handle is drawn but too small / culled" from "nothing draws the
-	//                     actor at all" - the fork that decides whether the fault is in the geometry or in
-	//                     the world the actor lives in.
-	//
-	// Throttled to about once a second so a per-frame hook does not bury the log, and Verbose so this
-	// diagnostic stays available without costing anything at the default level.
-	static double NextGizmoProbeTime = 0.0;
-	const double Now = FPlatformTime::Seconds();
-	if (Gizmo == nullptr || Now < NextGizmoProbeTime)
-	{
-		return;
-	}
-	NextGizmoProbeTime = Now + 1.0;
-
-	bool bEditorHidden = false;
-	bool bRecentlyRendered = false;
-	const bool bHasActor = Gizmo->GetGizmoActorDiagnostics(bEditorHidden, bRecentlyRendered);
-	RoadLog_Debug(
-		TEXT("tick gizmo actor=%d editorHidden=%d rendered=%d handles=%d point=%d | %s"),
-		bHasActor ? 1 : 0, bEditorHidden ? 1 : 0, bRecentlyRendered ? 1 : 0,
-		Gizmo->GetGizmoHandleMask(), PointIndex, *Gizmo->GetGizmoWorldDiagnostics());
 }
 
 void URoadTool_RoadPlan::Render(IToolsContextRenderAPI* RenderAPI)

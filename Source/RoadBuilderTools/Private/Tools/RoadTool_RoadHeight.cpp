@@ -119,7 +119,7 @@ void URoadTool_RoadHeight::OnPropertyModified(UObject* PropertySet, FProperty* P
 	ApplyPropertiesToPoint();
 }
 
-void URoadTool_RoadHeight::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadTool_RoadHeight::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
 	const FRay& Ray = ClickPos.WorldRay;
 	ARoadActor* Road = GetSelectedRoad();
@@ -127,10 +127,11 @@ void URoadTool_RoadHeight::OnRoadClicked(const FInputDeviceRay& ClickPos, bool b
 	if (bRightButton)
 	{
 		// Right click inserts a height point where the cursor meets the level - the legacy gesture that
-		// turns "I want a break in the profile here" into a single click.
+		// turns "I want a break in the profile here" into a single click. With no road to receive the
+		// point, or no ground under the cursor, the click is not this tool's and falls through.
 		if (Road == nullptr)
 		{
-			return;
+			return false;
 		}
 
 		const FVector Position = LineTrace(Ray, Road);
@@ -138,23 +139,24 @@ void URoadTool_RoadHeight::OnRoadClicked(const FInputDeviceRay& ClickPos, bool b
 		{
 			// The legacy tool projected the sentinel onto the road, which produced an arbitrary distance.
 			// A missed trace now simply does nothing.
-			return;
+			return false;
 		}
 		AddHeightPoint(Road, Road->GetUV(Position).X);
-		return;
+		return true;
 	}
 
 	const int32 PointIndex = PickHeightPoint(Road, Ray);
 	if (PointIndex != INDEX_NONE)
 	{
 		SelectPoint(Road, PointIndex);
-		return;
+		return true;
 	}
 
 	// Nothing of the selected road was hit, so the click was aimed at a road instead. The legacy tools
 	// got this from proxies drawn during Render(); ITF has no proxies, so the ray test happens here -
 	// same policy, different mechanism.
 	SelectPoint(SelectRoadUnderRay(Ray), INDEX_NONE);
+	return true;
 }
 
 void URoadTool_RoadHeight::SelectParent()
@@ -171,7 +173,10 @@ void URoadTool_RoadHeight::SelectPoint(ARoadActor* Road, int32 PointIndex)
 
 	// Shows the gizmo on the new point, or hides it when the selection is empty.
 	Gizmo->Update(Properties->PointIndex != INDEX_NONE);
-	RequestRebuild();
+
+	// Redraw, not rebuild: a selection change moves the highlight and the gizmo but touches no road
+	// data, and a rebuild refits the whole network. The legacy tool only invalidated the viewport here.
+	RequestRedraw();
 }
 
 int32 URoadTool_RoadHeight::GetSelectedPointIndex() const

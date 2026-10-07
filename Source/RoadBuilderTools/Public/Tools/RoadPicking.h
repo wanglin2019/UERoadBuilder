@@ -35,7 +35,12 @@ namespace RoadPicking
 	/** How close the ray must pass, as a fraction of the element's distance from the ray origin. */
 	inline constexpr double DefaultToleranceRatio = 0.02;
 
-	/** Long enough to leave any level. */
+	/**
+	 * Long enough to leave any level, and the one ray length for the whole tool layer: picking walks the
+	 * ray as a segment, the ground trace wants the ground however far below it is, and the gizmo's handle
+	 * test treats the ray as effectively infinite. Three call sites, one constant - the legacy layer had
+	 * the same single 1e6-ish figure in its LineTrace for the same reason.
+	 */
 	inline constexpr double RayLength = 99999999.0;
 
 	/** Distance from the ray to the segment [Start,End], and the point on the segment closest to it. */

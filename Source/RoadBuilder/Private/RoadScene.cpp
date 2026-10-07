@@ -32,6 +32,26 @@ void FJunctionGate::Renew(double D, double S)
 	Sign = S;
 }
 
+URoadCurve* FJunctionGate::GetLinkCurve(int32 LinkIndex) const
+{
+	if (!Links.IsValidIndex(LinkIndex))
+	{
+		return nullptr;
+	}
+	ARoadActor* LinkRoad = Links[LinkIndex].Road;
+	if (LinkRoad == nullptr || LinkRoad->BaseCurve == nullptr)
+	{
+		return nullptr;
+	}
+
+	// The corner link is the ramp, drawn as its own centreline; any other link stands in for a through
+	// road and is drawn as that road's right lane. RightLane is a URoadLane, which is a URoadCurve, so
+	// both halves hand back the same base type.
+	return (LinkIndex == AJunctionActor::CornerIndex)
+		? static_cast<URoadCurve*>(LinkRoad->BaseCurve)
+		: static_cast<URoadCurve*>(LinkRoad->BaseCurve->RightLane);
+}
+
 FJunctionGate& FJunctionSlot::InputGate() const
 {
 	return Junction->Gates[InputGateIndex()];

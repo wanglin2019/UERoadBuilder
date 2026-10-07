@@ -173,7 +173,7 @@ FVector URoadInteractiveTool::LineTrace(const FRay& Ray, AActor* IgnoredActor) c
 		Params.AddIgnoredActor(IgnoredActor);
 	}
 
-	if (World->LineTraceSingleByChannel(Hit, Ray.Origin, Ray.Origin + Ray.Direction * 1000000.0f,
+	if (World->LineTraceSingleByChannel(Hit, Ray.Origin, Ray.Origin + Ray.Direction * RoadPicking::RayLength,
 		ECollisionChannel::ECC_Visibility, Params))
 	{
 		return Hit.Location;
@@ -247,6 +247,8 @@ void URoadInteractiveTool::AddClickBehavior()
 		// Info: a left click did reach the tool and is about to act. This is a real user-visible event, so
 		// it stays on at the default Log verbosity.
 		RoadLog_Info(TEXT("clicked btn=L"));
+		// The result is ignored on this path: the behaviour already claimed the press at hit-test time,
+		// so there is nothing left to fall through to.
 		OnRoadClicked(ClickPos, /*bRightButton*/ false);
 	};
 
@@ -262,14 +264,16 @@ void URoadInteractiveTool::AddClickBehavior()
 bool URoadInteractiveTool::HandleViewportClick(const FRay& WorldRay, bool bRightButton)
 {
 	// The same entry point the left-button behaviour calls, so a tool keeps one click handler and the
-	// button is the only thing that differs between the two paths.
-	OnRoadClicked(FInputDeviceRay(WorldRay), bRightButton);
-	return true;
+	// button is the only thing that differs between the two paths. The tool's verdict travels back to
+	// the host: a click it declined is the editor's again (context menu included).
+	return OnRoadClicked(FInputDeviceRay(WorldRay), bRightButton);
 }
 
-void URoadInteractiveTool::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
+bool URoadInteractiveTool::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton)
 {
-	// Nothing by default: a tool with no click handling simply does not register a click behaviour.
+	// Nothing by default: a tool with no click handling simply does not register a click behaviour, and
+	// a click it never handled was never consumed.
+	return false;
 }
 
 FInputRayHit URoadInteractiveTool::IsHitByRoadClick(const FInputDeviceRay& ClickPos)
@@ -461,8 +465,9 @@ void URoadInteractiveTool::DrawRoads(FPrimitiveDrawInterface* PDI, bool bDrawLin
 	}
 
 	// The legacy link pass, ported verbatim in shape: each gate's links hold the road that continues
-	// through the junction, and the pass draws the ramp lane of the first link rather than its centreline -
-	// which the main loop above has already drawn.
+	// through the junction, and which curve of it gets drawn is the model's own call - see
+	// FJunctionGate::GetLinkCurve(), shared with the junction tool's picking pass so the two can never
+	// disagree about what a link looks like.
 	for (AJunctionActor* Junction : Scene->Junctions)
 	{
 		if (Junction == nullptr)
@@ -474,21 +479,13 @@ void URoadInteractiveTool::DrawRoads(FPrimitiveDrawInterface* PDI, bool bDrawLin
 		{
 			for (int32 LinkIndex = 0; LinkIndex < Gate.Links.Num(); ++LinkIndex)
 			{
-				ARoadActor* Road = Gate.Links[LinkIndex].Road;
-				if (Road == nullptr || Road->BaseCurve == nullptr)
-				{
-					continue;
-				}
-
-				URoadCurve* Curve = (LinkIndex == 1)
-					? static_cast<URoadCurve*>(Road->BaseCurve)
-					: static_cast<URoadCurve*>(Road->BaseCurve->RightLane);
+				URoadCurve* Curve = Gate.GetLinkCurve(LinkIndex);
 				if (Curve == nullptr)
 				{
 					continue;
 				}
 
-				const bool bSelected = (Road == SelectedRoad);
+				const bool bSelected = (Gate.Links[LinkIndex].Road == SelectedRoad);
 				DrawCurve(PDI, Curve->Curve, bSelected ? RoadToolStyle::Color_Select : RoadToolStyle::Color_Road,
 					RoadToolStyle::Thickness_Road, bSelected ? RoadToolStyle::DepthBias_Select : 0.0f);
 			}

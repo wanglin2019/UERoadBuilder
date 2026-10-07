@@ -44,5 +44,5 @@ class ROADBUILDERTOOLS_API URoadTool_RoadChop : public URoadInteractiveTool
 public:
 	virtual void Setup() override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-	virtual void OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton) override;
+	virtual bool OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton) override;
 };

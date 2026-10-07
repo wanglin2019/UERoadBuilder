@@ -196,31 +196,6 @@ public:
 	/** Runs the drag-ended callback, which is where the deferred geometry rebuild lives. */
 	void NotifyDragEnded();
 
-	/**
-	 * DIAGNOSTIC (remove when the drag path is confirmed): reports the gizmo actor's editor-side visibility
-	 * and whether the renderer has actually drawn it. IsHidden() (checked by Update()'s own probe) reads
-	 * only AActor::bHidden, while the editor also has a separate bIsTemporarilyHiddenInEditor flag, and a
-	 * component can be visible+registered+in-world yet still never make it into a rendered view. Returns
-	 * false when there is no gizmo actor at all.
-	 */
-	bool GetGizmoActorDiagnostics(bool& bOutEditorHidden, bool& bOutRecentlyRendered) const;
-
-	/**
-	 * DIAGNOSTIC (remove when the drag path is confirmed): bit mask of which translate handles the built
-	 * actor actually carries - bit0 X arrow, bit1 Y arrow, bit2 XY plane. Elements=22 asks for all three;
-	 * a missing bit means the factory did not build that handle at all, which is a different fault from
-	 * one that was built and then not drawn.
-	 */
-	int32 GetGizmoHandleMask() const;
-
-	/**
-	 * DIAGNOSTIC (remove when the drag path is confirmed): one line describing the world the gizmo actor
-	 * lives in and whether its plane component has reached FScene (SceneProxy != null). A registered
-	 * component without a proxy has never been added to the renderer, and an actor in a world that is not
-	 * the one the viewport draws can never be rendered no matter how healthy its flags look.
-	 */
-	FString GetGizmoWorldDiagnostics() const;
-
 private:
 	void OnBeginTransformEdit(UTransformProxy* Proxy);
 	void OnEndTransformEdit(UTransformProxy* Proxy);

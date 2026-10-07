@@ -95,7 +95,7 @@ public:
 	 * URoadInteractiveTool implementation.
 	 * Left click picks a height point (or falls back to selecting a road); right click inserts one.
 	 */
-	virtual void OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton) override;
+	virtual bool OnRoadClicked(const FInputDeviceRay& ClickPos, bool bRightButton) override;
 
 	/** Escape: drop the height point selection, then let the base step the road selection up a level. */
 	virtual void SelectParent() override;

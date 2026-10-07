@@ -138,6 +138,20 @@ struct FJunctionGate
 	}
 	void Renew(double D, double S);
 
+	/**
+	 * The curve one of this gate's links is drawn and hit-tested against.
+	 *
+	 * The links are the short roads continuing through the junction. The corner link (Links[CornerIndex],
+	 * the ramp) is drawn as its own centreline; every other link is drawn as its right lane, because its
+	 * centreline is one of the through roads and gets drawn with them anyway. This pairing used to be
+	 * written out separately by the drawing pass and the picking pass - it lives on the model now so the
+	 * two cannot drift apart. Null when the link has no road or the road has no curve yet.
+	 *
+	 * Exported on the method rather than the struct: the struct predates the export macro and only this
+	 * one method is called from outside the RoadBuilder module.
+	 */
+	ROADBUILDER_API URoadCurve* GetLinkCurve(int32 LinkIndex) const;
+
 	UPROPERTY()
 	ARoadActor* Road;
 

@@ -10,6 +10,9 @@
 #include "RoadToolsMode.generated.h"
 
 class ARoadScene;
+class ARoadActor;
+class AGroundActor;
+class AJunctionActor;
 class FEditorViewportClient;
 class HHitProxy;
 class URoadInteractiveTool;
@@ -104,6 +107,23 @@ public:
 	 */
 	void SelectActiveTool(const TCHAR* ToolId);
 
+	/**
+	 * The road / ground / junction being edited, owned by the mode itself.
+	 *
+	 * The legacy FEdModeRoad carried the same three members (SelectedRoad / SelectedGround /
+	 * SelectedJunction) and its tools drove them directly. Owning them here - rather than borrowing the
+	 * level editor's actor selection - keeps a click in the outliner from silently changing what a tool
+	 * is editing, and keeps a tool's pick from fighting the user's own actor selection. The context
+	 * object delegates to these, so the tools still see one IRoadEditorContext. Weak pointers, because
+	 * an undo can destroy the very actor a tool has selected.
+	 */
+	ARoadActor* GetSelectedRoad() const { return SelectedRoad.Get(); }
+	void SetSelectedRoad(ARoadActor* Road) { SelectedRoad = Road; }
+	AGroundActor* GetSelectedGround() const { return SelectedGround.Get(); }
+	void SetSelectedGround(AGroundActor* Ground) { SelectedGround = Ground; }
+	AJunctionActor* GetSelectedJunction() const { return SelectedJunction.Get(); }
+	void SetSelectedJunction(AJunctionActor* Junction) { SelectedJunction = Junction; }
+
 private:
 	/** The road scene of the edited world, or null. Resolved rather than cached; see Enter(). */
 	ARoadScene* FindRoadScene() const;
@@ -114,4 +134,9 @@ private:
 	/** Created in Enter(), released in Exit(). Owned by the mode so its lifetime matches the editing session. */
 	UPROPERTY(Transient)
 	TObjectPtr<URoadToolsModeContextObject> ContextObject;
+
+	/** The editing selection; see GetSelectedRoad(). Cleared in Exit(). */
+	TWeakObjectPtr<ARoadActor> SelectedRoad;
+	TWeakObjectPtr<AGroundActor> SelectedGround;
+	TWeakObjectPtr<AJunctionActor> SelectedJunction;
 };
