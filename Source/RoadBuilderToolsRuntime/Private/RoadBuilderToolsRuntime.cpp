@@ -3,9 +3,18 @@
 
 #include "RoadBuilderToolsRuntime.h"
 
+#include "RoadLog.h"
+
 void FRoadBuilderToolsRuntime::StartupModule()
 {
-	// S0 skeleton: the runtime host registers its world subsystem in S4.
+	// Nothing to register: the host is a UWorldSubsystem, which the engine instantiates per world on demand
+	// and which decides for itself whether a world can host editing (see ShouldCreateSubsystem).
+	//
+	// The subsystem is off until a game calls URoadToolsWorldSubsystem::StartEditing(). That is deliberate:
+	// this module is a Runtime one of an enabled plugin, so it loads in a packaged game whether or not the
+	// game wants an editor, and a host that started editing unprompted would be a surprise in every project
+	// that ships the plugin.
+	RoadLog_Debug(TEXT("RoadBuilderToolsRuntime module started (host is off until StartEditing)"));
 }
 
 void FRoadBuilderToolsRuntime::ShutdownModule()

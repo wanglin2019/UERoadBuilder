@@ -13,6 +13,12 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
+					// The runtime host derives from UInteractiveToolsContext and implements the three host
+					// interfaces (Queries / Transactions / Render), so ITF is part of its public shape -
+					// URoadToolsContext's base class and RoadToolsWorldSubsystem's members name its types.
+					"InteractiveToolsFramework",
+					"RoadBuilder",
+					"RoadBuilderTools",
 				}
 				);
 
@@ -22,9 +28,6 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"InputCore",
-					"InteractiveToolsFramework",
-					"RoadBuilder",
-					"RoadBuilderTools",
 					// Runtime host UI. These are Runtime modules themselves (UMG / Slate / SlateCore all
 					// live under Engine/Source/Runtime), which is what makes an in-game editing host
 					// possible at all. They are declared here and not in RoadBuilderTools on purpose:
@@ -35,16 +38,26 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-			// Skeleton plus the runtime rendering adapter (S0.5). What is still missing for the host
-			// itself (S4): a URoadToolsContext (UInteractiveToolsContext subclass + IToolsContextQueries
-			// / Transactions / Render implementations - the Render half now exists, see Rendering/), a
-			// UWorldSubsystem to own its lifetime, an input bridge feeding
-			// UInputRouter::PostInputEvent(FInputDeviceState), an undo command stack, and the property
-			// UI. See the project notes.
+			// The runtime host, complete as of S4. Map of what lives where:
 			//
-			// Note for S4: gizmo-based tools also need
-			// UE::TransformGizmoUtil::RegisterTransformGizmoContextObject() called on this context, the
-			// same way URoadToolsMode::Enter() does it for the editor host.
+			//   Public|Private/Editing/   the host core - URoadToolsContext (a UInteractiveToolsContext
+			//                             subclass) plus its three ITF interfaces: FRoadRuntimeQueriesAPI,
+			//                             FRoadRuntimeTransactionsAPI and FRoadRuntimeUndoStack (the undo
+			//                             history the Transactions API writes into), and
+			//                             URoadRuntimeContextObject (the game-side IRoadEditorContext).
+			//   Public|Private/Input/     FRoadRuntimeInputBridge, which turns a player controller's
+			//                             mouse/key state into FInputDeviceState for
+			//                             UInputRouter::PostInputEvent().
+			//   Public|Private/Rendering/ FRoadRuntimeRenderAPI and its FPrimitiveDrawInterface adapter
+			//                             (S0.5, pre-existing).
+			//   Public|Private/UI/        SRoadRuntimePropertyPanel, the stand-in for the editor's
+			//                             details view, which a game build cannot have.
+			//   RoadToolsWorldSubsystem    owns all of the above and decides when editing runs. It is
+			//                             off until a game calls StartEditing().
+			//
+			// The gizmo note from S0.5 is honoured in URoadToolsContext::InitializeRoadEditing(), which
+			// calls UE::TransformGizmoUtil::RegisterTransformGizmoContextObject() on itself the same way
+			// URoadToolsMode::Enter() does for the editor host.
 		}
 	}
 }
