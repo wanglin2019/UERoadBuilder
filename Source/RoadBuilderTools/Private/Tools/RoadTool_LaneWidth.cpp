@@ -78,7 +78,15 @@ URoadBoundary* URoadTool_LaneWidth::GetCurrentBoundary() const
 
 	// A rebuild or an undo can replace the road's boundaries wholesale, so the remembered one is only
 	// trusted while the road still lists it.
-	return Road->Boundaries.Contains(Boundary) ? Boundary : nullptr;
+	if (!Road->Boundaries.Contains(Boundary))
+	{
+		// Warn so a "selecting does nothing" report can be traced to a dropped selection rather than a
+		// missing render - the two look identical from the viewport.
+		RoadLog_Warn(TEXT("LaneWidth: selected boundary %s dropped, not in road %s Boundaries"),
+			*Boundary->GetName(), *Road->GetName());
+		return nullptr;
+	}
+	return Boundary;
 }
 
 int32 URoadTool_LaneWidth::GetOffsetIndex() const
@@ -89,9 +97,26 @@ int32 URoadTool_LaneWidth::GetOffsetIndex() const
 
 void URoadTool_LaneWidth::SelectOffset(URoadBoundary* Boundary, int32 Index)
 {
-	const bool bValid = (Boundary != nullptr && Boundary->LocalOffsets.IsValidIndex(Index));
-	CurrentBoundary = bValid ? Boundary : nullptr;
-	OffsetIndex = bValid ? Index : INDEX_NONE;
+	// Three cases, not two:
+	//  - Boundary == nullptr          -> clear the selection (missed click, escape, parent change).
+	//  - Boundary set, Index invalid  -> select the whole boundary: its line lights up and every control
+	//                                    point is highlighted, but no gizmo yet. This is the legacy two-step
+	//                                    gesture, and it is exactly what a click on the boundary line means
+	//                                    (PickUnderRay reports Index == INDEX_NONE for a line hit).
+	//  - Boundary set, Index valid    -> select that one control point and show its gizmo.
+	// The previous test folded cases one and two together via IsValidIndex(INDEX_NONE), which is always
+	// false, so clicking a boundary line emptied the selection instead of selecting it - the boundary was
+	// picked (the log showed it) but CurrentBoundary was reset to null, so Render drew nothing.
+	if (Boundary == nullptr)
+	{
+		CurrentBoundary = nullptr;
+		OffsetIndex = INDEX_NONE;
+	}
+	else
+	{
+		CurrentBoundary = Boundary;
+		OffsetIndex = Boundary->LocalOffsets.IsValidIndex(Index) ? Index : INDEX_NONE;
+	}
 
 	SyncPropertiesFromOffset();
 	Gizmo->Update(GetOffsetIndex() != INDEX_NONE);
@@ -386,6 +411,16 @@ bool URoadTool_LaneWidth::OnRoadClicked(const FInputDeviceRay& ClickPos, bool bR
 
 	if (!bRightButton)
 	{
+		// A line hit carries Index == INDEX_NONE, which means "select the boundary itself" - the legacy
+		// two-step gesture: red boundary + highlighted endpoints, no handle yet. The handle only appears
+		// once a specific control point is clicked (PickUnderRay offers the points only for the current
+		// boundary, so they become pickable on the next click).
+		//
+		// Info: one line per left click, so a missing selection shows up as boundary=null here.
+		RoadLog_Info(TEXT("LaneWidth left-click: road=%s boundary=%s index=%d"),
+			Road ? *Road->GetName() : TEXT("null"),
+			Boundary ? *Boundary->GetName() : TEXT("null"), Index);
+
 		// A miss clears the selection, which is how the legacy tool emptied its panel.
 		SelectOffset(Boundary, Index);
 		return true;
@@ -537,7 +572,11 @@ void URoadTool_LaneWidth::Render(IToolsContextRenderAPI* RenderAPI)
 	for (int32 PointIndex = 0; PointIndex < Boundary->LocalOffsets.Num(); ++PointIndex)
 	{
 		const double Dist = Boundary->LocalOffsets[PointIndex].Dist;
-		const FLinearColor Color = (PointIndex == Index) ? RoadToolStyle::Color_Select : RoadToolStyle::Color_Line;
+		// When a boundary is selected but no specific control point, the legacy tool lit up every one of its
+		// points so the "this is the selected boundary" feedback was unambiguous. A clicked control point
+		// (Index >= 0) narrows the highlight to just that one, and the gizmo shows for it.
+		const FLinearColor Color = (Index == INDEX_NONE || PointIndex == Index)
+			? RoadToolStyle::Color_Select : RoadToolStyle::Color_Line;
 		DrawPoint(PDI, Boundary, Dist, Color);
 
 		// The legacy tool drew the lane divider across the road at each control point, so the width being

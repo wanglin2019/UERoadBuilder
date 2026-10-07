@@ -142,6 +142,10 @@ private:
 	 * Both kinds of element go through one collector so that whichever is nearer wins: a control point
 	 * sitting on top of its boundary is picked as the point, and the bare boundary as the boundary. That is
 	 * what the two hit-proxy flavours (HRoadCurveProxy with and without an index) expressed.
+	 *
+	 * A line hit carries Index == INDEX_NONE (no specific control point), which is the "select the boundary
+	 * itself" case: the legacy hit proxy defaulted the index to 0, but the handle only appears once a real
+	 * control point is clicked - see Render() and the legacy two-step gesture.
 	 */
 	void PickUnderRay(const FRay& Ray, URoadBoundary*& OutBoundary, int32& OutIndex) const;
 
