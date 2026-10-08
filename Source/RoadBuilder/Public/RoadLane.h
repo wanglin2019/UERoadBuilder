@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "RoadBoundary.h"
 #include "RoadCurve.h"
-#include "LaneMarkStyle.h"
+#include "MarkStyles/LaneMarkStyle.h"
 #include "LaneShape.h"
 #include "RoadLane.generated.h"
 

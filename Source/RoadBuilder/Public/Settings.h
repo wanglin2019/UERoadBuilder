@@ -4,7 +4,8 @@
 #pragma once
 #include "Engine/DeveloperSettings.h"
 #include "LaneShape.h"
-#include "LaneMarkStyle.h"
+#include "MarkStyles/LaneMarkStyle.h"
+#include "MarkStyles/PolygonMarkStyle.h"
 #include "RoadActor.h"
 #include "Settings.generated.h"
 

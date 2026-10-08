@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "RoadCurve.h"
 #include "RoadProps.h"
-#include "LaneMarkStyle.h"
+#include "MarkStyles/LaneMarkStyle.h"
 #include "RoadBoundary.generated.h"
 
 USTRUCT()

@@ -4,7 +4,8 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "RoadMesh.h"
-#include "LaneMarkStyle.h"
+#include "MarkStyles/BaseMarkStyle.h"
+#include "MarkStyles/PolygonMarkStyle.h"
 #include "Engine/StaticMeshActor.h"
 #include "RoadMarking.generated.h"
 

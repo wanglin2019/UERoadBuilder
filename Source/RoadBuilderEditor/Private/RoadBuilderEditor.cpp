@@ -7,6 +7,8 @@
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Factories/LaneMarkStyleFactory.h"
+#include "Factories/CrosswalkStyleFactory.h"
+#include "Factories/PolygonMarkStyleFactory.h"
 #include "Factories/LaneShapeFactory.h"
 #include "Factories/RoadPropsFactory.h"
 #include "Factories/RoadStyleFactory.h"

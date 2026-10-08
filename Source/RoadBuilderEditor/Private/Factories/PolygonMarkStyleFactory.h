@@ -4,20 +4,20 @@
 #pragma once
 #include "Factories/Factory.h"
 #include "AssetTypeActions_Base.h"
-#include "LaneMarkStyleFactory.generated.h"
+#include "PolygonMarkStyleFactory.generated.h"
 
 UCLASS()
-class ULaneMarkStyleFactory : public UFactory
+class UPolygonMarkStyleFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 public:
 	virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 };
 
-class FLaneMarkStyleTypeActions : public FAssetTypeActions_Base
+class FPolygonMarkStyleTypeActions : public FAssetTypeActions_Base
 {
 public:
-	FLaneMarkStyleTypeActions(EAssetTypeCategories::Type InAssetCategory) :MyAssetCategory(InAssetCategory) {}
+	FPolygonMarkStyleTypeActions(EAssetTypeCategories::Type InAssetCategory) :MyAssetCategory(InAssetCategory) {}
 	virtual FText GetName() const override;
 	virtual FColor GetTypeColor() const { return FColor::Cyan; }
 	virtual UClass* GetSupportedClass() const override;

@@ -8,6 +8,7 @@
 #include "RoadLane.h"
 #include "RoadMarking.h"
 #include "LaneShape.h"
+#include "MarkStyles/PolygonMarkStyle.h"
 #include "Components/StaticMeshComponent.h"
 #include "RoadActor.generated.h"
 
